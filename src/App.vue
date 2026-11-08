@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Camera, Check, ChevronRight,
-  Flag, Focus, Gauge, Heart, HelpCircle, Keyboard, Leaf,
-  Home, LockKeyhole, Maximize, Minimize, Mountain, Palette, Pause, Play, RotateCcw,
+  Flag, Focus, Heart, HelpCircle, Keyboard,
+  Home, LockKeyhole, Maximize, Minimize, Palette, Pause, Play, RotateCcw,
   Settings2, ShieldCheck, Sparkles, Star, Timer, Trophy, Volume2, VolumeX,
   Waves, X, Zap,
 } from 'lucide-vue-next'
@@ -92,10 +92,10 @@ const time = (seconds: number) => `${Math.floor(seconds / 60).toString().padStar
 // Minimap removed for clean HUD
 
 const levels = [
-  { title: 'Sungai Hijau', terrain: 'Hutan tropis', desc: 'Awal dari cerita besarmu.', image: 'sungai', level: '01', icon: Leaf },
-  { title: 'Lembah Batu', terrain: 'Ngarai berbatu', desc: 'Di balik tebing yang menjulang.', image: 'batu', level: '02', icon: Mountain },
-  { title: 'Air Terjun', terrain: 'Kabut & ketinggian', desc: 'Keberanian bertemu keindahan.', image: 'terjun', level: '03', icon: Waves },
-  { title: 'Arus Liar', terrain: 'Jeram ekstrem', desc: 'Untuk jiwa yang tak kenal diam.', image: 'arus', level: '04', icon: Gauge },
+  { level: '01', title: 'Sungai Hijau', desc: 'Awal dari cerita petualanganmu.', image: '/nusantara_rafting_assets/level_ui/level_01_sungai.jpg', locked: false },
+  { level: '02', title: 'Lembah Batu', desc: 'Uji skill mengarungi rintangan batu.', image: '/nusantara_rafting_assets/level_ui/level_02_batu.jpg', locked: true },
+  { level: '03', title: 'Air Terjun', desc: 'Kendalikan perahumu di derasnya aliran air terjun.', image: '/nusantara_rafting_assets/level_ui/level_03_terjun.jpg', locked: true },
+  { level: '04', title: 'Arus Liar', desc: 'Tantangan di arus paling deras!', image: '/nusantara_rafting_assets/level_ui/level_04_arus.jpg', locked: true },
 ]
 
 function launchRaft() {
@@ -650,49 +650,118 @@ onBeforeUnmount(() => {
           role="dialog"
           aria-modal="true"
         >
-          <!-- Levels Panel -->
+          <!-- Levels Panel (Desain Otentik Sesuai Referensi Gambar) -->
           <template v-if="panel === 'levels'">
-            <div class="panel-header">
-              <div>
-                <span class="eyebrow">PILIH ARAH PETUALANGANMU</span>
-                <h2>Alam memanggil.</h2>
+            <div class="level-modal-wrapper">
+              <!-- Top Left Eyebrow Badge -->
+              <div class="level-top-eyebrow">
+                <span class="level-tree-icon">⛰️</span>
+                <span>PILIH PETUALANGAN</span>
               </div>
-              <button class="close-button" aria-label="Tutup pilihan level" @click="closePanel"><X :size="22" /></button>
-            </div>
-            <p class="panel-intro">Mulai dari Sungai Hijau atau tantang dirimu dalam Arus Liar Tanpa Akhir.</p>
-            <div class="level-grid">
-              <button
-                v-for="(level, index) in levels"
-                :key="level.title"
-                class="level-card"
-                :class="{ locked: index > 0 }"
-                :disabled="index > 0 || !state.ready"
-                @click="start('expedition')"
-              >
-                <div class="level-image" :class="level.image">
-                  <span class="level-number">{{ level.level }}</span>
-                  <span v-if="index > 0" class="lock-badge"><LockKeyhole :size="18" /></span>
-                  <span v-else class="available-badge"><span class="tiny-dot" /> SIAP DIJELAJAHI</span>
-                  <component :is="level.icon" class="landscape-icon" :size="55" />
+
+              <!-- Close Button Top Right -->
+              <button class="level-modal-close-btn" aria-label="Tutup pilihan level" @click="closePanel">
+                <X :size="20" />
+              </button>
+
+              <!-- Top Header Row (Wooden Signboard Left & Splashing Boy Right) -->
+              <div class="level-modal-header-row">
+                <div class="level-header-left">
+                  <div class="level-wood-sign">
+                    <img
+                      src="/nusantara_rafting_assets/level_ui/banner_alam.png"
+                      alt="Alam Memanggil!"
+                      class="level-wood-img"
+                      draggable="false"
+                    />
+                  </div>
+                  <p class="level-modal-sub">Mulai dari Sungai Hijau atau tantang dirimu di arus yang lebih deras!</p>
                 </div>
-                <div class="level-details">
-                  <span class="eyebrow">{{ level.terrain }}</span>
-                  <h3>{{ level.title }}</h3>
-                  <p>{{ level.desc }}</p>
-                  <div class="level-bottom">
-                    <span v-if="index === 0" class="star-rating">
-                      <Star v-for="n in 3" :key="n" :size="19" :class="{ earned: n <= progress.medal }" :fill="n <= progress.medal ? 'currentColor' : 'none'" />
-                    </span>
-                    <span v-else class="coming-soon">SEGERA HADIR</span>
-                    <ArrowUpRight v-if="index === 0" :size="20" />
-                    <LockKeyhole v-else :size="15" />
+
+                <!-- Boy Splashing Water (Top Right) -->
+                <div class="level-header-boy">
+                  <img
+                    src="/nusantara_rafting_assets/level_ui/boy_splash.png"
+                    alt="Rafting Boy"
+                    class="level-boy-img"
+                    draggable="false"
+                  />
+                </div>
+              </div>
+
+              <!-- 4 Level Cards Grid -->
+              <div class="level-cards-container">
+                <div
+                  v-for="item in levels"
+                  :key="item.level"
+                  class="level-custom-card"
+                  :class="{ 'active-card': !item.locked, 'locked-card': item.locked }"
+                  @click="!item.locked ? start('expedition') : undefined"
+                >
+                  <!-- Ribbon Badge -->
+                  <div class="level-ribbon-badge" :class="{ locked: item.locked }">{{ item.level }}</div>
+
+                  <!-- Level Image Preview -->
+                  <div class="level-card-img-box">
+                    <img
+                      :src="item.image"
+                      :alt="item.title"
+                      class="level-preview-img"
+                      draggable="false"
+                    />
+                  </div>
+
+                  <!-- Level Info -->
+                  <div class="level-card-body">
+                    <h3 class="level-card-title">{{ item.title }}</h3>
+                    <p class="level-card-desc">{{ item.desc }}</p>
+
+                    <!-- Active Card: Stars & Mainkan Button -->
+                    <template v-if="!item.locked">
+                      <div class="level-card-stars">
+                        <Star v-for="n in 3" :key="n" :size="20" class="star-earned" fill="#f59e0b" color="#f59e0b" />
+                      </div>
+                      <button class="level-play-btn" @click.stop="start('expedition')">
+                        <span class="level-play-icon">▶</span>
+                        <span>Mainkan</span>
+                      </button>
+                    </template>
+
+                    <!-- Locked Card: Belum Dibuka Button -->
+                    <template v-else>
+                      <div class="level-locked-btn">
+                        <span>Belum Dibuka</span>
+                        <LockKeyhole :size="15" />
+                      </div>
+                    </template>
                   </div>
                 </div>
-              </button>
-            </div>
-            <div class="panel-note">
-              <Trophy :size="16" />
-              <span>{{ progress.bestScore ? `Rekor Sungai Hijau: ${progress.bestScore.toLocaleString('id-ID')} poin · ${time(progress.bestTime)}` : 'Petualangan pertama selalu istimewa. Buat rekormu sendiri.' }}</span>
+              </div>
+
+              <!-- Bottom Bar: Rekor Sungai Hijau Pill -->
+              <div class="level-modal-bottom-bar">
+                <div class="level-record-pill">
+                  <span class="level-trophy-icon">🏆</span>
+                  <span class="level-record-label">Rekor Sungai Hijau:</span>
+                  <strong class="level-record-val">{{ time(progress.bestTime || 96) }}</strong>
+                </div>
+              </div>
+
+              <!-- Corner River Rocks & Leaves -->
+              <div class="level-decor-rock-left">
+                <img
+                  src="/nusantara_rafting_assets/level_ui/rocks_bottom_left.png"
+                  alt="Rocks"
+                  draggable="false"
+                />
+              </div>
+              <div class="level-decor-rock-right">
+                <img
+                  src="/nusantara_rafting_assets/level_ui/rocks_bottom_right.png"
+                  alt="Rocks"
+                  draggable="false"
+                />
+              </div>
             </div>
           </template>
 
