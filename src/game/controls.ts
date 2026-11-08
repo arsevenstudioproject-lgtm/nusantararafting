@@ -183,6 +183,8 @@ export class HeadControl {
   }
 
   get active() { return !!this.stream }
+  get currentStream() { return this.stream }
+  get videoElement() { return this.video }
 }
 
 export class InputController {

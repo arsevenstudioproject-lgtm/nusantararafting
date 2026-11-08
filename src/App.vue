@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Camera, Check, ChevronRight,
-  Flag, Focus, Heart, HelpCircle, Keyboard,
-  Home, LockKeyhole, Maximize, Minimize, Palette, Pause, Play, RotateCcw,
+  Flag, Gamepad2, Gauge, Heart, Keyboard,
+  Home, LockKeyhole, Monitor, Pause, Play, RotateCcw,
   Settings2, ShieldCheck, Sparkles, Star, Timer, Trophy, Volume2, VolumeX,
   Waves, X, Zap,
 } from 'lucide-vue-next'
@@ -17,10 +17,10 @@ const canvas = ref<HTMLCanvasElement>()
 const lensCanvas = ref<HTMLCanvasElement>()
 const panelElement = ref<HTMLElement>()
 const cameraPreview = ref<HTMLElement>()
-const panel = ref<'levels' | 'settings' | 'help' | 'garage' | 'control' | null>(null)
+const calibPreviewContainer = ref<HTMLElement>()
+const panel = ref<'levels' | 'settings' | 'help' | 'garage' | 'control' | 'calibrate' | null>(null)
 const garageTab = ref<'raft' | 'paddle'>('raft')
 const selectedGameType = ref<'expedition' | 'endless'>('expedition')
-const fullscreen = ref(false)
 
 
 const state = reactive<GameState>({
@@ -112,17 +112,40 @@ function requestStart(type: 'expedition' | 'endless' = selectedGameType.value) {
 async function startWithControl(controlMode: 'keyboard' | 'head') {
   settings.control = controlMode
   save('settings', settings)
-  panel.value = null
 
-  if (controlMode === 'head') {
-    void engine?.head.enable()
-  } else {
+  if (controlMode === 'keyboard') {
+    panel.value = null
     engine?.head.stop()
+    await engine?.start(targetStartType.value)
+    engine?.launchRaft()
+  } else {
+    // Mode kamera: kalibrasi dulu baru bisa masuk game!
+    panel.value = 'calibrate'
+    try {
+      await engine?.head.enable()
+      engine?.head.calibrate()
+    } catch {
+      // status dan pesan error tersimpan di tracking.message
+    }
   }
+}
 
+async function finishCalibrationAndStart() {
+  panel.value = null
   await engine?.start(targetStartType.value)
   engine?.launchRaft()
 }
+
+watch(panel, (newVal) => {
+  nextTick(() => {
+    if (newVal === 'calibrate' && calibPreviewContainer.value && engine?.head.videoElement) {
+      calibPreviewContainer.value.appendChild(engine.head.videoElement)
+      if (engine.head.videoElement.paused) engine.head.videoElement.play().catch(() => {})
+    } else if (cameraPreview.value && engine?.head.videoElement) {
+      cameraPreview.value.appendChild(engine.head.videoElement)
+    }
+  })
+})
 
 async function start(type = selectedGameType.value) {
   requestStart(type)
@@ -145,16 +168,6 @@ function toggleSound() {
   }
 }
 
-async function toggleFullscreen() {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen()
-    else await document.documentElement.requestFullscreen()
-  } catch {
-    engine?.toast('Layar penuh tidak tersedia di browser ini.')
-  }
-}
-
-function fullscreenChange() { fullscreen.value = !!document.fullscreenElement }
 function reload() { window.location.reload() }
 
 async function enableCamera() {
@@ -327,7 +340,6 @@ watch(isOverlay, async open => {
 })
 
 onMounted(async () => {
-  document.addEventListener('fullscreenchange', fullscreenChange)
   window.addEventListener('keydown', overlayKeyboard, true)
   window.addEventListener('keydown', (e) => {
     if (state.mode === 'playing' && state.onDock && (e.code === 'Space' || e.code === 'Enter')) {
@@ -365,7 +377,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   cancelAnimationFrame(dropletRaf)
   engine?.dispose()
-  document.removeEventListener('fullscreenchange', fullscreenChange)
   window.removeEventListener('keydown', overlayKeyboard, true)
 })
 </script>
@@ -868,103 +879,205 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <!-- Settings Panel -->
+          <!-- Settings Panel (Desain Otentik Sesuai Referensi Gambar Pengaturan) -->
           <template v-else-if="panel === 'settings'">
-            <div class="panel-header">
-              <div>
-                <span class="eyebrow">SESUAIKAN DENGAN GAYAMU</span>
-                <h2>Siap berangkat.</h2>
-              </div>
-              <button class="close-button" aria-label="Tutup pengaturan" @click="closePanel"><X :size="22" /></button>
-            </div>
-            <div class="settings-content">
-              <label class="setting-title">KENDALI RAKIT</label>
-              <div class="control-options">
-                <button :class="{ selected: settings.control === 'keyboard' }" @click="settings.control = 'keyboard'">
-                  <Keyboard :size="23" />
-                  <span>
-                    <b>Keyboard</b>
-                    <small>A / D kemudi · Space / W dayung · S rem</small>
-                  </span>
-                  <Check v-if="settings.control === 'keyboard'" :size="17" />
-                </button>
-                <button :class="{ selected: settings.control === 'head' }" @click="settings.control = 'head'">
-                  <Camera :size="23" />
-                  <span>
-                    <b>Gerakan kepala</b>
-                    <small>Miringkan kemudi · Angguk dayung cepat</small>
-                  </span>
-                  <Check v-if="settings.control === 'head'" :size="17" />
-                </button>
+            <div class="settings-modal-wrapper">
+              <!-- Top Wooden Signboard "Pengaturan" -->
+              <div class="settings-top-sign">
+                <img
+                  src="/nusantara_rafting_assets/settings_header.png"
+                  alt="Pengaturan"
+                  class="settings-header-img"
+                  draggable="false"
+                />
               </div>
 
-              <div v-if="settings.control === 'head'" class="camera-settings">
-                <div class="camera-status">
-                  <span class="control-dot" :class="{ active: hasCamera }" />
-                  <b>{{ tracking.status === 'tracking' ? 'Kamera aktif' : tracking.status === 'calibrating' ? 'Kalibrasi posisi netral' : tracking.status === 'lost' ? 'Wajah tidak terlihat' : tracking.status === 'loading' ? 'Menyiapkan kamera…' : 'Kontrol kepala' }}</b>
+              <!-- Circular Close Button Top Right -->
+              <button class="settings-modal-close-btn" aria-label="Tutup pengaturan" @click="closePanel">
+                <X :size="20" />
+              </button>
+
+              <!-- Header Row: Mountain + Siap Berangkat + Thumbs Up Boy -->
+              <div class="settings-modal-header-row">
+                <div class="settings-header-left">
+                  <div class="settings-eyebrow-mountain">⛰️</div>
+                  <h2 class="settings-main-title">Siap Berangkat!</h2>
+                  <p class="settings-main-sub">Sesuaikan permainan dengan gayamu.</p>
                 </div>
-                <p role="status">{{ tracking.message }}</p>
-                <div v-if="hasCamera" class="steering-meter">
-                  <span>KIRI</span>
-                  <div><i :style="{ left: `${50 + tracking.steering * 46}%` }" /></div>
-                  <span>KANAN</span>
+                <div class="settings-header-character">
+                  <img
+                    src="/nusantara_rafting_assets/settings_boy.png"
+                    alt="Karakter Siap Berangkat"
+                    class="settings-boy-img"
+                    draggable="false"
+                  />
                 </div>
-                <div class="camera-buttons">
-                  <button v-if="!hasCamera" class="button button-dark" :disabled="tracking.status === 'loading'" @click="enableCamera">
-                    <Camera :size="16" />{{ tracking.status === 'loading' ? 'MEMUAT…' : 'AKTIFKAN KAMERA' }}
-                  </button>
-                  <template v-else>
-                    <button class="button button-dark" @click="engine?.head.calibrate()">
-                      <Focus :size="16" />KALIBRASI ULANG
+              </div>
+
+              <!-- Main Settings Card Content -->
+              <div class="settings-card-content">
+                <!-- Section 1: Kontrol Rakit -->
+                <div class="settings-section-card">
+                  <div class="settings-section-header">
+                    <Gamepad2 :size="19" class="settings-sec-icon" />
+                    <span class="settings-sec-title">Kontrol Rakit</span>
+                  </div>
+                  <div class="settings-ctrl-grid">
+                    <!-- Option 1: Keyboard -->
+                    <div
+                      class="settings-ctrl-choice"
+                      :class="{ selected: settings.control === 'keyboard' }"
+                      tabindex="0"
+                      role="button"
+                      @click="settings.control = 'keyboard'; save('settings', settings); engine?.head.stop()"
+                      @keydown.enter="settings.control = 'keyboard'; save('settings', settings); engine?.head.stop()"
+                    >
+                      <div class="settings-ctrl-icon-wrap">
+                        <Keyboard :size="20" />
+                      </div>
+                      <div class="settings-ctrl-info">
+                        <strong class="settings-ctrl-name">Keyboard</strong>
+                        <span class="settings-ctrl-desc">A / D atau ← → untuk bergerak</span>
+                      </div>
+                      <div class="settings-radio-circle" :class="{ checked: settings.control === 'keyboard' }">
+                        <Check v-if="settings.control === 'keyboard'" :size="13" />
+                      </div>
+                    </div>
+
+                    <!-- Option 2: Gerakan Kepala -->
+                    <div
+                      class="settings-ctrl-choice"
+                      :class="{ selected: settings.control === 'head' }"
+                      tabindex="0"
+                      role="button"
+                      @click="settings.control = 'head'; save('settings', settings); enableCamera()"
+                      @keydown.enter="settings.control = 'head'; save('settings', settings); enableCamera()"
+                    >
+                      <div class="settings-ctrl-icon-wrap">
+                        <Camera :size="20" />
+                      </div>
+                      <div class="settings-ctrl-info">
+                        <strong class="settings-ctrl-name">Gerakan Kepala</strong>
+                        <span class="settings-ctrl-desc">Miringkan kepala untuk belok</span>
+                      </div>
+                      <div class="settings-radio-circle" :class="{ checked: settings.control === 'head' }">
+                        <Check v-if="settings.control === 'head'" :size="13" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Section 2: Kamera (Kontrol Kepala) -->
+                <div class="settings-section-card">
+                  <div class="settings-section-header">
+                    <Camera :size="19" class="settings-sec-icon" />
+                    <span class="settings-sec-title">Kamera (Kontrol Kepala)</span>
+                  </div>
+                  <div class="settings-cam-action-row">
+                    <button
+                      class="settings-cam-btn"
+                      :disabled="tracking.status === 'loading'"
+                      @click="hasCamera ? engine?.head.calibrate() : enableCamera()"
+                    >
+                      <Camera :size="17" />
+                      <span>{{ hasCamera ? (tracking.status === 'calibrating' ? 'Mengkalibrasi…' : 'Kalibrasi Kamera') : 'Aktifkan Kamera' }}</span>
                     </button>
-                    <button class="text-button" @click="engine?.head.stop()">Matikan kamera</button>
-                  </template>
+                    <div class="settings-privacy-text">
+                      <ShieldCheck :size="18" class="settings-shield-icon" />
+                      <span>Video diproses di perangkatmu dan tidak disimpan.</span>
+                    </div>
+                  </div>
                 </div>
-                <span class="privacy-note"><ShieldCheck :size="14" /> Video diproses di perangkatmu dan tidak diunggah.</span>
-              </div>
 
-              <div class="setting-row">
-                <label for="sensitivity">Sensitivitas kepala<small>Seberapa jauh rakit berbelok saat kepala dimiringkan.</small></label>
-                <span>{{ settings.sensitivity.toFixed(1) }}×</span>
-              </div>
-              <input id="sensitivity" v-model.number="settings.sensitivity" type="range" min="0.5" max="2" step="0.1" />
-
-              <div class="setting-row">
-                <label for="volume">Suara petualangan<small>Arus sungai, percikan, dan benturan jeram.</small></label>
-                <span>{{ Math.round(settings.volume * 100) }}%</span>
-              </div>
-              <input id="volume" v-model.number="settings.volume" type="range" min="0" max="1" step="0.05" />
-
-              <div class="setting-row quality-row">
-                <label for="quality">Kualitas grafis<small>Pilih ringan untuk perangkat dengan daya terbatas.</small></label>
-                <select id="quality" v-model="settings.quality">
-                  <option value="high">Tinggi</option>
-                  <option value="medium">Ringan</option>
-                </select>
-              </div>
-
-              <div class="setting-row">
-                <label>Layar Penuh<small>Tampilkan petualangan di seluruh layar.</small></label>
-                <button class="button button-dark" @click="toggleFullscreen">
-                  <Minimize v-if="fullscreen" :size="16" />
-                  <Maximize v-else :size="16" />
-                  {{ fullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh' }}
-                </button>
-              </div>
-
-              <div class="setting-row" style="border-top: 1px solid #dce0ce; padding-top: 16px;">
-                <label>Menu Lainnya<small>Buka gudang kustomisasi atau panduan bermain.</small></label>
-                <div style="display:flex; gap: 8px;">
-                  <button class="button button-dark" @click="showPanel('garage')">
-                    <Palette :size="16" /> Gudang
-                  </button>
-                  <button class="button button-dark" @click="showPanel('help')">
-                    <HelpCircle :size="16" /> Cara Main
-                  </button>
+                <!-- Section 3: Sensitivitas Kepala -->
+                <div class="settings-section-card">
+                  <div class="settings-slider-row">
+                    <div class="settings-slider-meta">
+                      <div class="settings-section-header-compact">
+                        <Gauge :size="19" class="settings-sec-icon" />
+                        <span class="settings-sec-title">Sensitivitas Kepala</span>
+                      </div>
+                      <span class="settings-sec-desc">Seberapa jauh rakit berbelok saat kepala dimiringkan.</span>
+                    </div>
+                    <div class="settings-slider-control-group">
+                      <div class="settings-range-track-wrap">
+                        <input
+                          id="sensitivity"
+                          v-model.number="settings.sensitivity"
+                          type="range"
+                          min="0.5"
+                          max="2.0"
+                          step="0.1"
+                          class="settings-custom-slider"
+                          :style="{ '--fill-pct': `${((settings.sensitivity - 0.5) / 1.5) * 100}%` }"
+                          @input="save('settings', settings)"
+                        />
+                      </div>
+                      <span class="settings-val-pill">{{ settings.sensitivity.toFixed(1).replace('.', ',') }}x</span>
+                    </div>
+                  </div>
                 </div>
+
+                <!-- Section 4: Suara Petualangan -->
+                <div class="settings-section-card">
+                  <div class="settings-slider-row">
+                    <div class="settings-slider-meta">
+                      <div class="settings-section-header-compact">
+                        <Volume2 :size="19" class="settings-sec-icon" />
+                        <span class="settings-sec-title">Suara Petualangan</span>
+                      </div>
+                      <span class="settings-sec-desc">Arus sungai, percikan, dan benturan jeram.</span>
+                    </div>
+                    <div class="settings-slider-control-group">
+                      <div class="settings-range-track-wrap">
+                        <input
+                          id="volume"
+                          v-model.number="settings.volume"
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          class="settings-custom-slider"
+                          :style="{ '--fill-pct': `${settings.volume * 100}%` }"
+                          @input="engine?.audio.setVolume(settings.volume); save('settings', settings)"
+                        />
+                      </div>
+                      <span class="settings-val-pill">{{ Math.round(settings.volume * 100) }}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Section 5: Kualitas Grafis -->
+                <div class="settings-section-card">
+                  <div class="settings-dropdown-row">
+                    <div class="settings-slider-meta">
+                      <div class="settings-section-header-compact">
+                        <Monitor :size="19" class="settings-sec-icon" />
+                        <span class="settings-sec-title">Kualitas Grafis</span>
+                      </div>
+                      <span class="settings-sec-desc">Pilih kualitas tampilan sesuai perangkatmu.</span>
+                    </div>
+                    <div class="settings-select-wrap">
+                      <select
+                        id="quality"
+                        v-model="settings.quality"
+                        class="settings-custom-select"
+                        @change="save('settings', settings)"
+                      >
+                        <option value="high">Tinggi</option>
+                        <option value="medium">Ringan</option>
+                      </select>
+                      <ChevronRight :size="16" class="settings-select-arrow" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer with Copyright Text Exactly Like Reference -->
+              <div class="settings-modal-footer">
+                <span>© Choirul Fadholanii 2026</span>
               </div>
             </div>
-            <div class="panel-note"><Check :size="15" /> Pengaturan tersimpan otomatis di perangkat ini.</div>
           </template>
 
           <!-- Help Panel -->
@@ -1127,6 +1240,106 @@ onBeforeUnmount(() => {
                   <button class="control-card-action-btn btn-camera" @click.stop="startWithControl('head')">
                     <Play :size="18" fill="currentColor" />
                     <span>Pakai Sensor Kamera</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Dialog Kalibrasi Kamera (Sebelum Masuk ke Game) -->
+          <template v-else-if="panel === 'calibrate'">
+            <div class="calib-modal-wrapper">
+              <button class="settings-modal-close-btn" aria-label="Tutup kalibrasi" @click="closePanel">
+                <X :size="20" />
+              </button>
+
+              <div class="control-modal-header">
+                <div class="control-modal-wood-sign">
+                  <span class="control-modal-title">KALIBRASI SENSOR KAMERA</span>
+                </div>
+                <p class="control-modal-sub">
+                  Posisikan wajahmu di dalam lingkaran oval dan tatap lurus sebelum meluncur ke jeram sungai!
+                </p>
+              </div>
+
+              <!-- Live Viewfinder with Oval Guide -->
+              <div class="calib-viewfinder-box">
+                <div ref="calibPreviewContainer" class="calib-video-container">
+                  <!-- Video stream is attached here -->
+                </div>
+
+                <!-- Face Oval Guide Overlay -->
+                <div
+                  class="calib-face-oval"
+                  :class="{
+                    'is-calibrating': tracking.status === 'calibrating',
+                    'is-ready': tracking.status === 'tracking' && tracking.calibration >= 0.95,
+                    'is-lost': tracking.status === 'lost'
+                  }"
+                >
+                  <div class="calib-crosshair"></div>
+                </div>
+
+                <!-- Real-time Status Badge -->
+                <div class="calib-status-badge">
+                  <span class="control-dot" :class="{ active: tracking.status === 'tracking' || tracking.status === 'calibrating' }" />
+                  <span>
+                    {{
+                      tracking.status === 'calibrating'
+                        ? `Mengkalibrasi... ${Math.round(tracking.calibration * 100)}% (Tatap Lurus)`
+                        : tracking.status === 'tracking' && tracking.calibration >= 0.95
+                          ? '✅ Kalibrasi Selesai! Posisi Kepala Siap'
+                          : tracking.status === 'lost'
+                            ? 'Wajah tidak terlihat, posisikan ke tengah oval'
+                            : tracking.message || 'Menyiapkan kamera…'
+                    }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Interactive Steering Tilt Meter -->
+              <div class="calib-meter-row">
+                <span class="calib-meter-label" :class="{ active: tracking.steering < -0.15 }">
+                  <ArrowLeft :size="14" /> MIRING KIRI
+                </span>
+                <div class="calib-meter-track">
+                  <div class="calib-meter-center-mark"></div>
+                  <i class="calib-meter-cursor" :style="{ left: `${50 + tracking.steering * 46}%` }"></i>
+                </div>
+                <span class="calib-meter-label" :class="{ active: tracking.steering > 0.15 }">
+                  MIRING KANAN <ArrowRight :size="14" />
+                </span>
+              </div>
+
+              <!-- Calibration Progress Track -->
+              <div class="calib-progress-section">
+                <div class="calib-progress-track">
+                  <div
+                    class="calib-progress-fill"
+                    :style="{ width: `${Math.min(100, Math.round(tracking.calibration * 100))}%` }"
+                  ></div>
+                </div>
+                <span class="calib-progress-text">
+                  {{ tracking.calibration >= 0.95 ? '100% Siap Meluncur!' : `Kalibrasi: ${Math.round(tracking.calibration * 100)}%` }}
+                </span>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="calib-actions-row">
+                <button
+                  class="calib-btn-start"
+                  :disabled="tracking.calibration < 0.95 && tracking.status !== 'tracking'"
+                  @click="finishCalibrationAndStart"
+                >
+                  <Play :size="20" fill="currentColor" />
+                  <span>MASUK KE GAME & LUNCURKAN RAKIT</span>
+                </button>
+                <div class="calib-secondary-btns">
+                  <button class="calib-btn-redo" @click="engine?.head.calibrate()">
+                    <RotateCcw :size="16" /> Kalibrasi Ulang
+                  </button>
+                  <button class="calib-btn-switch" @click="startWithControl('keyboard')">
+                    <Keyboard :size="16" /> Ganti ke Keyboard
                   </button>
                 </div>
               </div>
@@ -1615,5 +1828,685 @@ onBeforeUnmount(() => {
 .control-card-action-btn:hover {
   transform: translateY(-2px);
   filter: brightness(1.08);
+}
+
+/* ========================================================================= */
+/* AUTHENTIC PENGATURAN (SETTINGS) MODAL                                     */
+/* ========================================================================= */
+.panel-settings {
+  max-width: 620px !important;
+  width: 95% !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.settings-modal-wrapper {
+  position: relative;
+  background: #fdfbf4;
+  border: 5px solid #2e7d32;
+  border-radius: 28px;
+  padding: 24px 22px 18px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Nunito', system-ui, sans-serif;
+  margin-top: 36px;
+}
+
+.settings-top-sign {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.settings-header-img {
+  height: 72px;
+  width: auto;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+}
+
+.settings-modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fff8e7;
+  border: 2px solid #854d0e;
+  color: #713f12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease, background 0.15s ease;
+  z-index: 5;
+}
+
+.settings-modal-close-btn:hover {
+  transform: scale(1.08);
+  background: #fef08a;
+}
+
+.settings-modal-header-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+  margin-bottom: 12px;
+  padding: 0 6px;
+}
+
+.settings-header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.settings-eyebrow-mountain {
+  font-size: 16px;
+  line-height: 1;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.settings-main-title {
+  font-family: 'Fredoka', cursive, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #143d22;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+}
+
+.settings-main-sub {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #5c6b5e;
+  margin: 4px 0 0;
+}
+
+.settings-header-character {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -10px;
+}
+
+.settings-boy-img {
+  height: 96px;
+  width: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+}
+
+.settings-card-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-section-card {
+  background: #ffffff;
+  border: 1.5px solid #e7e2d4;
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.settings-section-header-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-sec-icon {
+  color: #2e7d32;
+}
+
+.settings-sec-title {
+  font-family: 'Fredoka', cursive, sans-serif;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.settings-sec-desc {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.settings-ctrl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 520px) {
+  .settings-ctrl-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-ctrl-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.settings-ctrl-choice:hover {
+  border-color: #22c55e;
+}
+
+.settings-ctrl-choice.selected {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #22c55e;
+}
+
+.settings-ctrl-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.settings-ctrl-choice.selected .settings-ctrl-icon-wrap {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #16a34a;
+}
+
+.settings-ctrl-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.settings-ctrl-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.settings-ctrl-desc {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.settings-radio-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.settings-radio-circle.checked {
+  border-color: #22c55e;
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.settings-cam-action-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.settings-cam-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, #15803d 0%, #166534 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-family: 'Fredoka', cursive, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.35);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.settings-cam-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.settings-privacy-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.settings-shield-icon {
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+.settings-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-slider-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.settings-slider-control-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-range-track-wrap {
+  width: 140px;
+}
+
+.settings-custom-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #4ade80 0%, #22c55e var(--fill-pct, 50%), #cbd5e1 var(--fill-pct, 50%), #cbd5e1 100%);
+  outline: none;
+}
+
+.settings-custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #22c55e;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.1s ease;
+}
+
+.settings-custom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.settings-val-pill {
+  min-width: 48px;
+  text-align: center;
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.settings-dropdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.settings-custom-select {
+  appearance: none;
+  background: #ffffff;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 8px 32px 8px 16px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+}
+
+.settings-custom-select:focus {
+  border-color: #22c55e;
+}
+
+.settings-select-arrow {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  color: #64748b;
+  transform: rotate(90deg);
+}
+
+.settings-modal-footer {
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f381e;
+  opacity: 0.85;
+}
+
+/* ========================================================================= */
+/* CAMERA CALIBRATION MODAL (SEBELUM MASUK GAME)                              */
+/* ========================================================================= */
+.panel-calibrate {
+  max-width: 640px !important;
+  width: 95% !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.calib-modal-wrapper {
+  position: relative;
+  background: #fdfbf4;
+  border: 5px solid #2e7d32;
+  border-radius: 28px;
+  padding: 32px 24px 24px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Nunito', system-ui, sans-serif;
+}
+
+.calib-viewfinder-box {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  height: 280px;
+  background: #0f172a;
+  border: 4px solid #cbd5e1;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.6);
+  margin-bottom: 14px;
+}
+
+.calib-video-container {
+  width: 100%;
+  height: 100%;
+}
+
+.calib-video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.calib-face-oval {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 170px;
+  height: 220px;
+  border: 3px dashed #fbbf24;
+  border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+.calib-face-oval.is-calibrating {
+  border-color: #f59e0b;
+  animation: pulseOval 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseOval {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.04); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+.calib-face-oval.is-ready {
+  border: 4px solid #22c55e;
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.6);
+}
+
+.calib-face-oval.is-lost {
+  border-color: #ef4444;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+.calib-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.calib-status-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.calib-meter-row {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.calib-meter-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  transition: color 0.15s ease;
+}
+
+.calib-meter-label.active {
+  color: #16a34a;
+}
+
+.calib-meter-track {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.calib-meter-center-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: #94a3b8;
+  transform: translateX(-50%);
+}
+
+.calib-meter-cursor {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 18px;
+  border-radius: 999px;
+  background: #22c55e;
+  transform: translateX(-50%);
+  transition: left 0.05s ease-out;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.calib-progress-section {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.calib-progress-track {
+  width: 100%;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+}
+
+.calib-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #22c55e);
+  border-radius: 999px;
+  transition: width 0.15s ease-out;
+}
+
+.calib-progress-text {
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+}
+
+.calib-actions-row {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calib-btn-start {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-family: 'Fredoka', cursive, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  background: linear-gradient(180deg, #38ef7d 0%, #11998e 100%);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(17, 153, 142, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calib-btn-start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  box-shadow: none;
+}
+
+.calib-btn-start:not(:disabled):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.calib-secondary-btns {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.calib-btn-redo,
+.calib-btn-switch {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.calib-btn-redo:hover,
+.calib-btn-switch:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
 }
 </style>
