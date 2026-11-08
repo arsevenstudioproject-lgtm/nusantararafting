@@ -1673,34 +1673,7 @@ export class Environment {
     archBeam.position.set(0, 5.8, 0)
     portalGroup.add(archBeam)
 
-    const signCanvas = document.createElement('canvas')
-    signCanvas.width = 512
-    signCanvas.height = 128
-    const sCtx = signCanvas.getContext('2d')!
-    sCtx.fillStyle = '#b45309'
-    sCtx.beginPath()
-    sCtx.roundRect(8, 8, 496, 112, 16)
-    sCtx.fill()
-    sCtx.strokeStyle = '#fef08a'
-    sCtx.lineWidth = 6
-    sCtx.stroke()
-    sCtx.fillStyle = '#ffffff'
-    sCtx.font = '900 48px sans-serif'
-    sCtx.textAlign = 'center'
-    sCtx.textBaseline = 'middle'
-    sCtx.fillText('★ GERBANG MULAI ★', 256, 44)
-    sCtx.font = '700 28px sans-serif'
-    sCtx.fillStyle = '#fef08a'
-    sCtx.fillText('NUSANTARA RAFTING', 256, 88)
-    const signTex = new THREE.CanvasTexture(signCanvas)
-    const signMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.2, 1.4),
-      new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.4 })
-    )
-    signMesh.position.set(0, 4.4, 0.02)
-    portalGroup.add(signMesh)
-
-    // Gate hinge groups kept for API compatibility, doors removed as requested (open archway)
+    // Gate hinge groups kept for API compatibility, doors & sign removed as requested (open archway)
     this.startGateLeft = new THREE.Group()
     this.startGateLeft.position.set(-4.0, 0, 0)
     portalGroup.add(this.startGateLeft)

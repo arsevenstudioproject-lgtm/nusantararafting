@@ -102,10 +102,30 @@ function launchRaft() {
   engine?.launchRaft()
 }
 
-async function start(type = selectedGameType.value) {
-  selectedGameType.value = type
+const targetStartType = ref<'expedition' | 'endless'>('expedition')
+
+function requestStart(type: 'expedition' | 'endless' = selectedGameType.value) {
+  targetStartType.value = type
+  panel.value = 'control'
+}
+
+async function startWithControl(controlMode: 'keyboard' | 'head') {
+  settings.control = controlMode
+  save('settings', settings)
   panel.value = null
-  await engine?.start(type)
+
+  if (controlMode === 'head') {
+    void engine?.head.enable()
+  } else {
+    engine?.head.stop()
+  }
+
+  await engine?.start(targetStartType.value)
+  engine?.launchRaft()
+}
+
+async function start(type = selectedGameType.value) {
+  requestStart(type)
 }
 
 function showPanel(value: typeof panel.value) {
@@ -513,27 +533,7 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <!-- Start Dock Launch Banner (ketika rakit di dermaga kayu - Referensi River Rush "JUMP TO START") -->
-      <div v-if="state.onDock && state.mode === 'playing'" class="dock-launch-overlay">
-        <div class="dock-launch-box">
-          <div class="dock-wood-header">
-            <span class="dock-rope left"></span>
-            <span class="dock-rope right"></span>
-          </div>
-          <div class="dock-parchment-banner">
-            <div class="dock-arrow-icon">⬆️</div>
-            <div class="dock-banner-text">
-              <span class="dock-banner-main">JUMP TO START</span>
-              <span class="dock-banner-sub">DERMAGA AWAL NUSANTARA</span>
-            </div>
-            <div class="dock-arrow-icon">⬆️</div>
-          </div>
-          <div class="dock-prompt-hint">Meluncur otomatis dalam <b>{{ state.dockCountdown }}</b> detik… atau tekan <b>[SPASI]</b> untuk langsung meluncur!</div>
-          <button class="button button-primary btn-launch-dock" @click="launchRaft">
-            🚀 MELUNCUR KE SUNGAI!
-          </button>
-        </div>
-      </div>
+
 
       
 
@@ -596,19 +596,7 @@ onBeforeUnmount(() => {
 
 
 
-      <div class="keyboard-legend">
-        <kbd>A</kbd><kbd>D</kbd><span>kemudi</span>
-        <i />
-        <kbd>Space</kbd><kbd>W</kbd><span>dayung</span>
-        <i />
-        <kbd>S</kbd><span>rem</span>
-        <i />
-        <kbd>N</kbd><kbd>Shift</kbd><span>NOS</span>
-        <i />
-        <kbd>F</kbd><kbd>E</kbd><span>parasut</span>
-        <i />
-        <kbd>Esc</kbd><span>jeda</span>
-      </div>
+
 
       <!-- Mobile Touch Controls -->
       <div class="touch-steering">
@@ -1049,6 +1037,102 @@ onBeforeUnmount(() => {
             </button>
           </template>
 
+          <!-- Dialog Pemilihan Metode Kontrol (Setiap Memulai Petualangan) -->
+          <template v-else-if="panel === 'control'">
+            <div class="control-select-modal">
+              <button class="level-modal-close-btn" aria-label="Tutup" @click="closePanel">
+                <X :size="20" />
+              </button>
+
+              <div class="control-modal-header">
+                <div class="control-modal-wood-sign">
+                  <span class="control-modal-title">PILIH METODE KONTROL</span>
+                </div>
+                <p class="control-modal-sub">
+                  Pilih cara mengendalikan rakitmu sebelum meluncur mengarungi jeram sungai!
+                </p>
+              </div>
+
+              <div class="control-modal-cards">
+                <!-- Opsi 1: Keyboard -->
+                <div
+                  class="control-choice-card"
+                  :class="{ active: settings.control === 'keyboard' }"
+                  tabindex="0"
+                  role="button"
+                  @click="startWithControl('keyboard')"
+                  @keydown.enter="startWithControl('keyboard')"
+                >
+                  <div class="control-card-badge">Klasik & Presisi</div>
+                  <div class="control-card-icon-wrap keyboard-theme">
+                    <Keyboard :size="46" />
+                  </div>
+                  <h3 class="control-card-title">Kontrol Keyboard</h3>
+                  <div class="control-card-specs">
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">A / D</span>
+                      <span class="control-spec-text">Kemudi Kiri / Kanan</span>
+                    </div>
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">Space / W</span>
+                      <span class="control-spec-text">Dayung Cepat</span>
+                    </div>
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">Shift / N</span>
+                      <span class="control-spec-text">NOS Turbo</span>
+                    </div>
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">S</span>
+                      <span class="control-spec-text">Rem Darurat</span>
+                    </div>
+                  </div>
+                  <button class="control-card-action-btn btn-keyboard" @click.stop="startWithControl('keyboard')">
+                    <Play :size="18" fill="currentColor" />
+                    <span>Pakai Keyboard</span>
+                  </button>
+                </div>
+
+                <!-- Opsi 2: Sensor Kamera -->
+                <div
+                  class="control-choice-card"
+                  :class="{ active: settings.control === 'head' }"
+                  tabindex="0"
+                  role="button"
+                  @click="startWithControl('head')"
+                  @keydown.enter="startWithControl('head')"
+                >
+                  <div class="control-card-badge camera-badge">AI Bebas Genggam</div>
+                  <div class="control-card-icon-wrap camera-theme">
+                    <Camera :size="46" />
+                  </div>
+                  <h3 class="control-card-title">Sensor Kamera (AI)</h3>
+                  <div class="control-card-specs">
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">👤 Miring</span>
+                      <span class="control-spec-text">Miringkan Kepala (Kemudi)</span>
+                    </div>
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">🌊 Angguk</span>
+                      <span class="control-spec-text">Angguk Kepala (Dayung)</span>
+                    </div>
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">📷 Webcam</span>
+                      <span class="control-spec-text">Deteksi Wajah Real-time</span>
+                    </div>
+                    <div class="control-spec-item">
+                      <span class="control-spec-key">✨ Imersif</span>
+                      <span class="control-spec-text">Sensasi Mengarungi Jeram</span>
+                    </div>
+                  </div>
+                  <button class="control-card-action-btn btn-camera" @click.stop="startWithControl('head')">
+                    <Play :size="18" fill="currentColor" />
+                    <span>Pakai Sensor Kamera</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <!-- Paused Panel (Sesuai Referensi Gambar Nusantara Rafting) -->
           <template v-else-if="state.mode === 'paused'">
             <div class="pause-dialog-container">
@@ -1195,10 +1279,7 @@ onBeforeUnmount(() => {
       {{ state.mode === 'playing' ? `Bagian ${state.section + 1}: ${section.name}. ${state.checkpoint} checkpoint.` : '' }}
     </div>
 
-    <!-- Persistent Copyright Footer -->
-    <footer class="game-footer">
-      <span>© choirul7 2026</span>
-    </footer>
+
   </main>
 </template>
 
@@ -1318,112 +1399,221 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* Dock Launch Banner Overlay (River Rush Jump to Start Style) */
-.dock-launch-overlay {
-  position: absolute;
-  top: 60px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  pointer-events: auto;
+/* ========================================================================= */
+/* CONTROL SELECTION MODAL (KEYBOARD vs SENSOR KAMERA)                       */
+/* ========================================================================= */
+.panel-control {
+  max-width: 780px !important;
+  width: 95% !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
-.dock-launch-box {
+
+.control-select-modal {
   position: relative;
+  background: #fdfbf4;
+  border: 5px solid #2e7d32;
+  border-radius: 28px;
+  padding: 34px 28px 28px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.9);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  max-width: 480px;
-  animation: floatDock 2.2s ease-in-out infinite alternate;
+  font-family: 'Nunito', system-ui, sans-serif;
 }
-@keyframes floatDock {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-6px); }
-}
-.dock-wood-header {
-  position: absolute;
-  top: -14px;
-  width: 90%;
+
+.control-modal-header {
   display: flex;
-  justify-content: space-between;
-  pointer-events: none;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
 }
-.dock-rope {
-  width: 4px;
-  height: 20px;
-  background: repeating-linear-gradient(180deg, #78350f, #92400e 3px, #451a03 5px);
-  border-radius: 2px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+
+.control-modal-wood-sign {
+  background: linear-gradient(180deg, #a7541e 0%, #873e13 40%, #5d2807 100%);
+  border: 3px solid #ffde59;
+  border-radius: 18px;
+  padding: 8px 32px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.4);
 }
-.dock-parchment-banner {
-  background: linear-gradient(180deg, #fef9c3 0%, #fef08a 25%, #fde047 80%, #eab308 100%);
-  border: 4px solid #78350f;
-  border-radius: 12px;
-  padding: 12px 26px;
+
+.control-modal-title {
+  font-family: 'Fredoka', 'Barlow Condensed', cursive, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fffde7;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 8px rgba(255, 222, 89, 0.4);
+}
+
+.control-modal-sub {
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.control-modal-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .control-modal-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.control-choice-card {
+  position: relative;
+  background: #ffffff;
+  border: 3px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.control-choice-card:hover,
+.control-choice-card:focus-visible {
+  transform: translateY(-4px) scale(1.02);
+  border-color: #f59e0b;
+  box-shadow: 0 14px 28px rgba(245, 158, 11, 0.22);
+  outline: none;
+}
+
+.control-choice-card.active {
+  border-color: #22c55e;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.2);
+}
+
+.control-card-badge {
+  position: absolute;
+  top: -12px;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+}
+
+.control-card-badge.camera-badge {
+  background: #0ea5e9;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.4);
+}
+
+.control-card-icon-wrap {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.8), inset 0 -3px 6px rgba(180, 83, 9, 0.4);
-  position: relative;
+  margin-top: 6px;
+  margin-bottom: 12px;
 }
-.dock-arrow-icon {
-  font-size: 26px;
-  animation: bounceArrow 0.8s ease-in-out infinite alternate;
+
+.control-card-icon-wrap.keyboard-theme {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #b45309;
+  border: 2px solid #fcd34d;
 }
-@keyframes bounceArrow {
-  0% { transform: translateY(2px); }
-  100% { transform: translateY(-4px); }
+
+.control-card-icon-wrap.camera-theme {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0369a1;
+  border: 2px solid #7dd3fc;
 }
-.dock-banner-text {
+
+.control-card-title {
+  font-family: 'Fredoka', cursive, sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 12px;
+}
+
+.control-card-specs {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.control-spec-item {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
 }
-.dock-banner-main {
-  font-family: 'Barlow Condensed', 'Arial Black', sans-serif;
-  font-size: 32px;
-  font-weight: 900;
-  letter-spacing: 2px;
-  color: #451a03;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.2);
-  line-height: 1;
-}
-.dock-banner-sub {
-  font-family: 'Barlow Condensed', sans-serif;
+
+.control-spec-key {
+  color: #1e293b;
+  font-family: monospace;
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 1.5px;
-  color: #854d0e;
-  margin-top: 3px;
 }
-.dock-prompt-hint {
+
+.control-spec-text {
+  color: #64748b;
   font-size: 12px;
   font-weight: 600;
-  color: #ffffff;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-  padding: 4px 14px;
-  backdrop-filter: blur(8px);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
-.dock-prompt-hint b {
-  color: #fde047;
-}
-.btn-launch-dock {
-  margin-top: 2px;
-  padding: 12px 24px !important;
-  font-size: 14px !important;
-  font-weight: 900 !important;
-  border-radius: 12px !important;
-  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
-  border-color: #fef08a !important;
-  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45) !important;
+
+.control-card-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-family: 'Fredoka', cursive, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  border: none;
   cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
-.btn-launch-dock:hover {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.6) !important;
+
+.control-card-action-btn.btn-keyboard {
+  background: linear-gradient(180deg, #ffc837 0%, #ff8008 100%);
+  color: #451a03;
+  box-shadow: 0 6px 16px rgba(255, 128, 8, 0.4);
+}
+
+.control-card-action-btn.btn-camera {
+  background: linear-gradient(180deg, #38ef7d 0%, #11998e 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(17, 153, 142, 0.4);
+}
+
+.control-card-action-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
 }
 </style>
