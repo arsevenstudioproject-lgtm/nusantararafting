@@ -503,6 +503,10 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="hud-actions">
+          <div class="hud-coin-pill" aria-label="Koin">
+            <span class="hud-coin-icon">🪙</span>
+            <span class="hud-coin-num">{{ state.coins }}</span>
+          </div>
           <button class="icon-button" :aria-label="settings.volume ? 'Matikan suara' : 'Aktifkan suara'" @click="toggleSound">
             <Volume2 v-if="settings.volume" :size="19" />
             <VolumeX v-else :size="19" />
@@ -528,26 +532,14 @@ onBeforeUnmount(() => {
             </div>
             <div class="dock-arrow-icon">⬆️</div>
           </div>
-          <div class="dock-prompt-hint">Gerbang terbuka otomatis dalam <b>{{ state.dockCountdown }}</b> detik… atau tekan <b>[SPASI]</b> untuk langsung meluncur!</div>
+          <div class="dock-prompt-hint">Meluncur otomatis dalam <b>{{ state.dockCountdown }}</b> detik… atau tekan <b>[SPASI]</b> untuk langsung meluncur!</div>
           <button class="button button-primary btn-launch-dock" @click="launchRaft">
-            🚀 BUKA PORTAL & MELUNCUR KE SUNGAI!
+            🚀 MELUNCUR KE SUNGAI!
           </button>
         </div>
       </div>
 
-      <aside class="hud-stats">
-        <!-- MISI UTAMA: KOLEKSI KOIN CR -->
-        <div class="hud-clean-coin-card">
-          <div class="clean-coin-badge">
-            <span class="clean-coin-icon">🪙</span>
-            <div class="clean-coin-meta">
-              <span class="clean-coin-title">KOIN CR</span>
-              <strong class="clean-coin-val">{{ state.coins }}</strong>
-            </div>
-          </div>
-        </div>
-
-      </aside>
+      
 
       <!-- Active Flight and Combo Overlays -->
       <div v-if="state.parachuteActive" class="parachute-flying-banner">
@@ -668,14 +660,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <Transition name="toast">
-        <div v-if="state.toast" class="game-toast" :class="state.toastType" role="status">
-          <Sparkles v-if="state.toastType === 'star'" :size="17" />
-          <Waves v-else-if="state.toastType === 'info'" :size="18" />
-          <ShieldCheck v-else :size="18" />
-          {{ state.toast }}
-        </div>
-      </Transition>
+      
       <div class="portrait-hint">Putar perangkat untuk pandangan sungai lebih luas.</div>
     </div>
 

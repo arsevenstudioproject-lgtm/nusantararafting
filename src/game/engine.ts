@@ -556,7 +556,7 @@ export class RiverEngine {
         this.toast(`Benturan! −${Math.round(impact.damage)} kondisi`, 'hit', 1.6)
       }
     }
-    this.physics.onCollect = () => { this.audio.collectCoin(); this.toast('🪙 KOIN CR +100 POIN! (Choirul7 2026)', 'star', 1.8) }
+    this.physics.onCollect = () => { this.audio.collectCoin() }
     this.physics.onCollectNos = () => {
       this.audio.collectNos()
       this.toast('JERIGEN NITRO DIDAPATKAN! [N] / [SHIFT] UNTUK NOS!', 'star', 2.8)
@@ -567,7 +567,6 @@ export class RiverEngine {
     }
     this.physics.onCollectCoin = () => {
       this.audio.collectCoin()
-      this.toast('🪙 KOIN CR +100 POIN! (Choirul7 2026)', 'star', 1.8)
     }
     this.physics.onCollectShield = () => {
       this.audio.collectShield()
