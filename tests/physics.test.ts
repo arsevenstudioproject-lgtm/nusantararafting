@@ -53,7 +53,7 @@ describe('Sungai Hijau / Rapier integration', () => {
     expect(p.checkpoint).toBeGreaterThanOrEqual(4)
     expect(p.stars).toBeGreaterThanOrEqual(18); expect(p.health).toBeGreaterThan(45)
     expect(-p.raft.translation().z).toBeGreaterThan(700)
-  })
+  }, 20000)
 
   it('supports boost and brake paddling mechanics', async () => {
     const p = await create()

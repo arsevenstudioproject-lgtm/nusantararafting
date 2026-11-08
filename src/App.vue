@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Camera, Check, ChevronRight,
   Flag, Flame, Focus, Gauge, Heart, HelpCircle, Keyboard, Leaf,
-  LockKeyhole, Maximize, Minimize, Mountain, Palette, Pause, Play, RotateCcw,
+  Home, LockKeyhole, Maximize, Minimize, Mountain, Palette, Pause, Play, RotateCcw,
   Settings2, ShieldCheck, Sparkles, Star, Timer, Trophy, Volume2, VolumeX,
   Waves, X, Zap,
 } from 'lucide-vue-next'
@@ -1004,23 +1004,75 @@ onBeforeUnmount(() => {
             </button>
           </template>
 
-          <!-- Paused Panel -->
+          <!-- Paused Panel (Sesuai Referensi Gambar Nusantara Rafting) -->
           <template v-else-if="state.mode === 'paused'">
-            <div class="pause-symbol"><Pause :size="27" fill="currentColor" /></div>
-            <span class="eyebrow">TARIK NAPAS SEJENAK</span>
-            <h2>Sungai bisa menunggu.</h2>
-            <p class="panel-intro">Petualanganmu dijeda. Kembali saat kamu siap.</p>
-            <div class="pause-summary">
-              <span><Timer :size="17" />{{ time(state.time) }}</span>
-              <span><Star :size="17" />{{ state.stars }}</span>
-              <span><Heart :size="17" />{{ Math.ceil(state.health) }}%</span>
-              <span><Zap :size="17" />{{ Math.ceil(state.stamina) }}%</span>
-            </div>
-            <button class="button button-primary" @click="engine?.resume()"><Play :size="17" fill="currentColor" />LANJUTKAN<ArrowRight :size="18" /></button>
-            <button class="button button-outline" @click="showPanel('settings')"><Settings2 :size="17" />PENGATURAN</button>
-            <div class="pause-links">
-              <button @click="start(state.gameType)"><RotateCcw :size="15" /> Mulai ulang</button>
-              <button @click="menu">Kembali ke menu<ArrowUpRight :size="15" /></button>
+            <div class="pause-dialog-container">
+              <!-- Top Wooden Signboard "Permainan Dijeda" -->
+              <div class="pause-header-sign">
+                <img
+                  src="/nusantara_rafting_assets/pause_ui/header_wood.png"
+                  alt="Permainan Dijeda"
+                  class="pause-header-img"
+                  draggable="false"
+                />
+              </div>
+
+              <!-- Main Cream Card with Green Border -->
+              <div class="pause-main-card">
+                <!-- Character on Tube (Left Side) -->
+                <div class="pause-character-decor">
+                  <img
+                    src="/nusantara_rafting_assets/pause_ui/character_tube.png"
+                    alt="Rafting Boy"
+                    class="pause-character-img"
+                    draggable="false"
+                  />
+                </div>
+
+                <!-- Rocks and Foliage (Bottom Right) -->
+                <div class="pause-rocks-decor">
+                  <img
+                    src="/nusantara_rafting_assets/pause_ui/rocks_leaves.png"
+                    alt="River Rocks"
+                    class="pause-rocks-img"
+                    draggable="false"
+                  />
+                </div>
+
+                <!-- Center Content -->
+                <div class="pause-inner-content">
+                  <!-- Landscape River Emblem -->
+                  <div class="pause-emblem-box">
+                    <img
+                      src="/nusantara_rafting_assets/pause_ui/emblem.png"
+                      alt="Landscape"
+                      class="pause-emblem-img"
+                      draggable="false"
+                    />
+                  </div>
+
+                  <h2 class="pause-heading">Petualangan belum selesai.</h2>
+                  <p class="pause-lead">Lanjutkan untuk melanjutkan permainan.</p>
+
+                  <!-- Big Golden Resume Button -->
+                  <button class="pause-btn-primary" @click="engine?.resume()">
+                    <span class="pause-play-icon">▶</span>
+                    <span>Lanjutkan</span>
+                  </button>
+
+                  <!-- Secondary Buttons Row -->
+                  <div class="pause-secondary-row">
+                    <button class="pause-btn-secondary" @click="start(state.gameType)">
+                      <RotateCcw :size="18" class="pause-btn-icon" />
+                      <span>Ulangi Level</span>
+                    </button>
+                    <button class="pause-btn-secondary" @click="menu">
+                      <Home :size="18" class="pause-btn-icon" />
+                      <span>Kembali ke Menu</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </template>
 
