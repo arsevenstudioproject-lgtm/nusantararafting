@@ -57,15 +57,8 @@ export class RiverPhysics {
   coins = 0
 
   // Stunt & Powerup Systems
-  stuntRoll = 0
-  stuntPitch = 0
-  stuntsCompleted = 0
-  currentStuntName = ''
   magnetTimeLeft = 0
   feverTimeLeft = 0
-
-  onStuntComplete?: (stuntName: string, count: number) => void
-  onStuntLand?: (stuntName: string, count: number, perfect: boolean) => void
   onCollectMagnet?: () => void
   onCrocodileTailWhip?: (id: number, pos: { x: number; z: number }, dir: number) => void
   onFeverStart?: () => void
@@ -244,10 +237,6 @@ export class RiverPhysics {
     this.sinkDepth = 0
     this.sinkRoll = 0
     this.sinkPitch = 0
-    this.stuntRoll = 0
-    this.stuntPitch = 0
-    this.stuntsCompleted = 0
-    this.currentStuntName = ''
     this.magnetTimeLeft = 0
     this.feverTimeLeft = 0
     this.events.free()
@@ -777,35 +766,6 @@ export class RiverPhysics {
     }
 
     const next = this.raft.translation()
-
-    // STUNT SYSTEM: Saat melompat di udara, player bisa melakukan trik akrobat
-    const isHighAir = this.isAirborne || (this.jumpAltitude + this.rampLift > 0.8)
-    if (isHighAir && !this.capsized && !this.isSinking) {
-      if (steering < -0.2) this.stuntRoll -= dt * 6.5
-      else if (steering > 0.2) this.stuntRoll += dt * 6.5
-
-      if (this.boosting) this.stuntPitch += dt * 5.8
-      else if (this.braking) this.stuntPitch -= dt * 5.8
-
-      const totalRot = Math.max(Math.abs(this.stuntRoll), Math.abs(this.stuntPitch))
-      const targetThreshold = (this.stuntsCompleted + 1) * Math.PI * 1.85
-      if (totalRot >= targetThreshold) {
-        this.stuntsCompleted++
-        this.currentStuntName = Math.abs(this.stuntRoll) >= Math.abs(this.stuntPitch) ? '360° BARREL ROLL!' : 'SUPER FLIP!'
-        this.onStuntComplete?.(this.currentStuntName, this.stuntsCompleted)
-      }
-    } else {
-      if (this.stuntsCompleted > 0) {
-        // Landing check: sukses mendarat mulus!
-        this.nosCharges = Math.min(3, this.nosCharges + 1)
-        this.combo += 2
-        this.onStuntLand?.(this.currentStuntName, this.stuntsCompleted, true)
-      }
-      this.stuntRoll = 0
-      this.stuntPitch = 0
-      this.stuntsCompleted = 0
-      this.currentStuntName = ''
-    }
 
     // MULTIPLAYER RAFT-TO-RAFT COLLISION (BUMPER CAR PHYSICS):
     if (this.opponentState && !this.capsized && !this.isWaterfallPlunge) {

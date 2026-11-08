@@ -46,7 +46,6 @@ const state = reactive<GameState>({
   magnetTimeLeft: 0,
   feverActive: false,
   feverTimeLeft: 0,
-  stuntText: '',
   stars: 0,
   score: 0,
   checkpoint: 0,
@@ -567,7 +566,7 @@ onBeforeUnmount(() => {
 
 
       <div class="keyboard-legend">
-        <kbd>A</kbd><kbd>D</kbd><span>kemudi / akrobat</span>
+        <kbd>A</kbd><kbd>D</kbd><span>kemudi</span>
         <i />
         <kbd>Space</kbd><kbd>W</kbd><span>dayung</span>
         <i />

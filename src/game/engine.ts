@@ -800,7 +800,6 @@ export class RiverEngine {
         magnetTimeLeft: this.physics.magnetTimeLeft,
         feverActive: this.physics.feverTimeLeft > 0,
         feverTimeLeft: this.physics.feverTimeLeft,
-        stuntText: this.physics.currentStuntName,
         stars: this.physics.stars,
         score: Math.max(0, (isEndless
           ? Math.round(s * 2.5 + this.physics.stars * 120 + this.physics.coins * 50 + this.physics.time * 6 + this.physics.nearMissCount * 25)
@@ -881,12 +880,12 @@ export class RiverEngine {
         let airPitch = 0
         if (this.physics.isParachuteActive) airPitch = -0.12
         else if (jumpY > 0.05) airPitch = Math.max(-0.4, Math.min(0.35, -this.physics.jumpVy * 0.025))
-        this.raft.rotation.x = splinePitch + airPitch + this.physics.rampPitch + Math.sin(t * 3.2 + s) * (.018 + section.rapids * .055) + this.physics.stuntPitch
+        this.raft.rotation.x = splinePitch + airPitch + this.physics.rampPitch + Math.sin(t * 3.2 + s) * (.018 + section.rapids * .055)
 
         // Banking: rakit miring (roll) saat berbelok dan saat meluncur drift ke samping
         const bankRoll = -this.physics.lateralVelocity * 0.038 - this.currentSteering * 0.12
         const normalRoll = Math.sin(t * 4) * section.rapids * .045 + Math.sin(t * 32) * this.impactShake * .1
-        this.raft.rotation.z = THREE.MathUtils.damp(this.raft.rotation.z, bankRoll + normalRoll, 7, dt) + Math.sin(t * 39) * .11 * this.physics.rumble + this.physics.stuntRoll
+        this.raft.rotation.z = THREE.MathUtils.damp(this.raft.rotation.z, bankRoll + normalRoll, 7, dt) + Math.sin(t * 39) * .11 * this.physics.rumble
 
         // Yaw: menghadap ke arah kurva sungai
         const tangentYaw = Math.atan2(tangent.x, -tangent.z)

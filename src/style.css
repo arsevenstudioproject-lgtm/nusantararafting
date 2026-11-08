@@ -1037,31 +1037,7 @@
   100% { transform: scale(1.05); filter: brightness(1.25); }
 }
 
-/* STUNT NOTIFICATION BANNER */
-.stunt-flying-banner {
-  position: absolute;
-  top: 26%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(234, 179, 8, 0.95), rgba(249, 115, 22, 0.95));
-  border: 2px solid #ffffff;
-  border-radius: 999px;
-  padding: 8px 24px;
-  color: #ffffff;
-  font-family: 'Luckiest Guy', cursive, sans-serif;
-  font-size: 24px;
-  letter-spacing: 1.5px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-  box-shadow: 0 8px 24px rgba(234, 179, 8, 0.6), 0 0 20px rgba(255, 255, 255, 0.6);
-  pointer-events: none;
-  animation: stuntBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  z-index: 20;
-}
 
-@keyframes stuntBounce {
-  0% { transform: translateX(-50%) scale(0.6); opacity: 0; }
-  100% { transform: translateX(-50%) scale(1); opacity: 1; }
-}
 
 /* FEVER SPEED SCREEN OVERLAY */
 .fever-screen-overlay {

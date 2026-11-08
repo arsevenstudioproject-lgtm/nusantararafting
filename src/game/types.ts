@@ -46,7 +46,6 @@ export interface GameState {
   magnetTimeLeft: number
   feverActive: boolean
   feverTimeLeft: number
-  stuntText: string
   stars: number
   score: number
   checkpoint: number
