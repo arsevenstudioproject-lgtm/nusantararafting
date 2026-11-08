@@ -40,6 +40,7 @@ export class RiverPhysics {
   floating: { body: RAPIER.RigidBody; obstacle: Obstacle }[] = []
   health = 100
   onDock = false
+  canSink = false // Default: rakit tidak pernah tenggelam agar permainan nyaman & menyenangkan
   isSinking = false
   sinkingTimer = 0
   sinkDepth = 0
@@ -459,41 +460,41 @@ export class RiverPhysics {
     const section = sections[sectionAt(s)]
     const rapid = rapidIntensity(s)
     this.rapid = rapid
-    // Arus lateral lebih kuat di jeram: dorongan sinus + hentakan turbulensi acak-semu
-    const current = section.current * (1 + rapid * .9) * Math.sin(s * .037 + this.time * .55)
-    const turbulence = rapid * (Math.sin(this.time * 2.1 + s * .18) * 2.4 + Math.sin(this.time * 4.5 + s * .08) * 1.4)
+    // Arus lateral lebih tenang dan teratur, tidak membuat kepala cepat lelah
+    const current = section.current * (1 + rapid * .5) * Math.sin(s * .037 + this.time * .55) * 0.75
+    const turbulence = rapid * 0.45 * (Math.sin(this.time * 1.8 + s * .18) * 1.4 + Math.sin(this.time * 3.5 + s * .08) * 0.8)
 
     // 1 & 2. TANGENT Y & GRAVITASI CURAM (CatmullRomCurve3):
     const tangent = getSplineTangent(s)
     const slopeY = -tangent.y // Positif saat menukik ke bawah / air terjun
     this.currentSlopeY = slopeY
 
-    // Lonjakan Kecepatan Gravitasi (Speed Boost) saat sungai menukik curam ke bawah:
-    const gravitySpeedBoost = Math.max(0, slopeY) * 22.0
+    // Lonjakan Kecepatan Gravitasi yang nyaman, tidak terlalu cepat agar nyaman dikontrol pakai kepala
+    const gravitySpeedBoost = Math.max(0, slopeY) * 9.5
     // Momentum turunan: kecepatan dari muka jeram terbawa dan meluruh perlahan di kolam bawah
-    this.dropMomentum = Math.max(this.dropMomentum * Math.exp(-dt * .60), gravitySpeedBoost * .60)
-    let flowSpeed = section.speed + Math.max(gravitySpeedBoost, this.dropMomentum) + rapid * 1.5
+    this.dropMomentum = Math.max(this.dropMomentum * Math.exp(-dt * .60), gravitySpeedBoost * .50)
+    let flowSpeed = section.speed + Math.max(gravitySpeedBoost, this.dropMomentum) + rapid * 0.7
 
     if (this.isEndless && s > FINISH) {
-      const endlessRamp = Math.min(1.4, 1 + (s - FINISH) / 4000)
+      const endlessRamp = Math.min(1.3, 1 + (s - FINISH) / 5000)
       flowSpeed *= endlessRamp
     }
 
-    if (this.isNosActive) flowSpeed *= 2.25
-    else if (this.isParachuteActive) flowSpeed *= 1.42
-    else if (this.boosting) flowSpeed *= 1.48
-    else if (this.braking) flowSpeed *= .56
+    if (this.isNosActive) flowSpeed *= 1.85
+    else if (this.isParachuteActive) flowSpeed *= 1.30
+    else if (this.boosting) flowSpeed *= 1.35
+    else if (this.braking) flowSpeed *= .65
 
     this.forwardSpeed = flowSpeed
 
-    // 2. FISIKA RAKIT (DRIFTING & INERSIA LICIN):
-    // Tombol Kiri/Kanan menambah lateralVelocity secara lokal
-    const steerForce = steering * (this.braking ? 34.0 : 26.0)
+    // 2. FISIKA RAKIT (DRIFTING & INERSIA NYAMAN & STABIL):
+    // Kemudi lebih stabil dan lembut saat dikontrol menggunakan gerakan kepala
+    const steerForce = steering * (this.braking ? 25.0 : 19.5)
     this.lateralVelocity += steerForce * dt
-    // Efek Drifting/Inersia: Rakit terasa licin, drag lambat saat tombol dilepas
-    this.lateralVelocity *= Math.exp(-dt * 2.2)
-    // Pengaruh dorongan arus lateral sungai:
-    this.lateralVelocity += (current + turbulence) * dt * 2.2
+    // Damping stabil: rakit tidak liar tergelincir
+    this.lateralVelocity *= Math.exp(-dt * 2.8)
+    // Pengaruh dorongan arus lateral sungai yang lembut:
+    this.lateralVelocity += (current + turbulence) * dt * 1.4
     this.lateralOffset += this.lateralVelocity * dt
 
     // Batas tepi sungai (Bumper Wall Bounce):
@@ -860,7 +861,7 @@ export class RiverPhysics {
             } else if (this.feverTimeLeft > 0 || this.isNosActive) {
               // protected
             } else {
-              this.health = Math.max(0, this.health - 16)
+              this.health = this.canSink ? Math.max(0, this.health - 16) : Math.max(20, this.health - 16)
             }
             this.onRockslideHitRaft?.(rock.s, boulderWorldX, curZ, throwDir)
           }
@@ -1058,9 +1059,9 @@ export class RiverPhysics {
       return
     }
     const damage = isWall ? Math.min(5, 2.0 + strength * .25) : Math.min(9, 4.2 + strength * .35)
-    this.health = Math.max(0, this.health - damage)
+    this.health = this.canSink ? Math.max(0, this.health - damage) : Math.max(20, this.health - damage)
     this.onImpact?.({ x: p.x, z: p.z, strength: s, damage, obstacleId: obstacle?.id, obstacleKind: obstacle?.kind, scoreDeduction })
-    if (this.health <= 0 && !this.isSinking) {
+    if (this.canSink && this.health <= 0 && !this.isSinking) {
       this.isSinking = true; this.sinkingTimer = 0; this.onSinkingStart?.()
     }
   }
@@ -1079,11 +1080,11 @@ export class RiverPhysics {
       return false
     }
     const damage = 15
-    this.health = Math.max(0, this.health - damage)
+    this.health = this.canSink ? Math.max(0, this.health - damage) : Math.max(20, this.health - damage)
     this.scorePenalty += 50
     this.onImpact?.({ x: p.x, z: p.z, strength: 9, damage, obstacleId: obstacle.id, obstacleKind: 'crocodile', scoreDeduction: 50 })
     this.onCrocodileRam?.(obstacle.id, { x: p.x, z: p.z }, dir)
-    if (this.health <= 0) {
+    if (this.canSink && this.health <= 0) {
       this.isSinking = true; this.sinkingTimer = 0; this.onSinkingStart?.()
       return true
     }

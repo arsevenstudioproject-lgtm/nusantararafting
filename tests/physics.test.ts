@@ -116,6 +116,7 @@ describe('Sungai Hijau / Rapier integration', () => {
 
   it('ends the simulation on raft failure and does not advance afterward', async () => {
     const p = await create()
+    p.canSink = true
     const obstacle = obstacles[0], x = riverCenter(obstacle.s) + obstacle.offset
     for (let hit = 0; hit < 15 && p.health > 0; hit++) {
       p.raft.setTranslation({ x, y: .4, z: -obstacle.s + 9 }, true)

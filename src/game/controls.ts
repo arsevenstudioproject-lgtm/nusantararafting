@@ -4,7 +4,8 @@ import type { TrackingState } from './types'
 export function steeringFromTilt(tilt: number, neutral: number, sensitivity: number): number {
   const delta = tilt - neutral, deadZone = .04
   if (Math.abs(delta) <= deadZone) return 0
-  return Math.max(-1, Math.min(1, Math.sign(delta) * (Math.abs(delta) - deadZone) / .2 * sensitivity))
+  // Rentang sudut kemiringan kepala yang lebih nyaman & tidak melelahkan leher (~16 derajat ke arah penuh)
+  return Math.max(-1, Math.min(1, Math.sign(delta) * ((Math.abs(delta) - deadZone) / .28) * sensitivity))
 }
 
 // Head roll from the outer eye corners, positive when the right ear drops toward the right shoulder.
@@ -159,7 +160,8 @@ export class HeadControl {
       target = 0
       this.state.nodAction = 'none'
     }
-    this.state.steering += (target - this.state.steering) * (1 - Math.exp(-dt * 14))
+    // Penghalusan kemudi kepala yang lembut dan responsif tanpa sentakan tiba-tiba
+    this.state.steering += (target - this.state.steering) * (1 - Math.exp(-dt * 8.5))
     return this.state.steering
   }
 
