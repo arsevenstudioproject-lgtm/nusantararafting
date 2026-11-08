@@ -663,6 +663,7 @@ export class RiverEngine {
       stars: 0, score: 0, checkpoint: 0, section: 0, hits: 0, combo: 0,
       onDock: true,
       dockCountdown: 5,
+      nosCharges: 1, nosActive: false, nosTimeLeft: 0,
     })
     this.accumulator = 0; this.lastSection = 0; this.impactShake = 0; this.dockTimer = 0; this.input.enabled = true
     this.resetCamera(false)
@@ -789,6 +790,7 @@ export class RiverEngine {
         health: this.physics.health, stamina: this.physics.stamina,
         boosting: this.physics.boosting, braking: this.physics.braking,
         nosCharges: this.physics.nosCharges, nosActive: this.physics.isNosActive,
+        nosTimeLeft: this.physics.nosTimeLeft,
         parachuteCharges: this.physics.parachuteCharges,
         parachuteActive: this.physics.isParachuteActive,
         parachuteTimeLeft: this.physics.parachuteTimeLeft,

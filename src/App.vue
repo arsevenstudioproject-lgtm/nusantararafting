@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Camera, Check, ChevronRight,
-  Flag, Focus, Gauge, Heart, HelpCircle, Keyboard, Leaf,
+  Flag, Flame, Focus, Gauge, Heart, HelpCircle, Keyboard, Leaf,
   LockKeyhole, Maximize, Minimize, Mountain, Palette, Pause, Play, RotateCcw,
   Settings2, ShieldCheck, Sparkles, Star, Timer, Trophy, Volume2, VolumeX,
   Waves, X, Zap,
@@ -37,6 +37,7 @@ const state = reactive<GameState>({
   braking: false,
   nosCharges: 1,
   nosActive: false,
+  nosTimeLeft: 0,
   parachuteCharges: 1,
   parachuteActive: false,
   parachuteTimeLeft: 0,
@@ -554,6 +555,68 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="state.combo > 1" class="combo-badge">
         ⚡ COMBO ×{{ state.combo }}!
+      </div>
+
+      <!-- Tombol NOS Combo di Pojok Kanan HUD -->
+      <div
+        v-if="!state.onDock"
+        class="hud-nos-corner"
+        :class="{
+          'is-ready': (state.nosCharges > 0 || state.combo >= 2) && !state.nosActive,
+          'is-firing': state.nosActive,
+          'is-disabled': state.nosCharges <= 0 && state.combo < 2 && !state.nosActive
+        }"
+      >
+        <button
+          class="hud-nos-button"
+          :disabled="state.nosCharges <= 0 && state.combo < 2 && !state.nosActive"
+          :aria-label="state.nosActive ? 'NOS Turbo Aktif' : 'Aktifkan NOS Turbo'"
+          @click="triggerNos"
+        >
+          <!-- Active timer when firing -->
+          <div v-if="state.nosActive" class="nos-timer-ring">
+            <span>{{ state.nosTimeLeft.toFixed(1) }}s</span>
+          </div>
+          <!-- Shortcut pill when not firing -->
+          <span v-else class="nos-key-pill"><kbd>Shift</kbd> / <kbd>N</kbd></span>
+
+          <!-- Main Icon & Content -->
+          <div class="nos-btn-content">
+            <div class="nos-icon-wrap">
+              <Zap v-if="!state.nosActive" :size="26" fill="currentColor" />
+              <Flame v-else :size="28" fill="currentColor" class="flame-firing" />
+            </div>
+
+            <div class="nos-btn-meta">
+              <span class="nos-main-label">{{ state.nosActive ? 'TURBO BLAST!' : 'NOS TURBO' }}</span>
+              <div v-if="state.nosActive" class="nos-status-sub firing">
+                🔥 MENEMBAK
+              </div>
+              <div v-else-if="state.combo >= 2" class="nos-status-sub combo-ready">
+                ⚡ COMBO ×{{ state.combo }} SIAP!
+              </div>
+              <div v-else-if="state.nosCharges > 0" class="nos-status-sub ready">
+                SIAP (×{{ state.nosCharges }})
+              </div>
+              <div v-else class="nos-status-sub disabled">
+                COMBO / AMBIL NOS
+              </div>
+            </div>
+          </div>
+
+          <!-- Charge pips indicator -->
+          <div class="nos-pips-bar">
+            <span
+              v-for="i in 3"
+              :key="i"
+              class="nos-pip"
+              :class="{
+                filled: i <= state.nosCharges || (state.combo >= 2 && i === 1),
+                flaming: state.nosActive && i <= 1
+              }"
+            />
+          </div>
+        </button>
       </div>
 
       <button class="tracking-pill" :class="{ 'camera-on': hasCamera }" @click="showPanel('settings')">

@@ -37,6 +37,7 @@ export interface GameState {
   braking: boolean
   nosCharges: number
   nosActive: boolean
+  nosTimeLeft: number
   parachuteCharges: number
   parachuteActive: boolean
   parachuteTimeLeft: number

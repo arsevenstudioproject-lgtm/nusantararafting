@@ -67,6 +67,9 @@ export class RiverPhysics {
   nosCharges = 1
   isNosActive = false
   nosElapsed = 0
+  get nosTimeLeft(): number {
+    return this.isNosActive ? Math.max(0, 3.5 - this.nosElapsed) : 0
+  }
   hasShield = false
   parachuteCharges = 1
   isParachuteActive = false
@@ -376,8 +379,12 @@ export class RiverPhysics {
       return
     }
 
-    if (nos && this.nosCharges > 0 && !this.isNosActive) {
-      this.nosCharges--
+    if (nos && (this.nosCharges > 0 || this.combo >= 2) && !this.isNosActive) {
+      if (this.nosCharges > 0) {
+        this.nosCharges--
+      } else if (this.combo >= 2) {
+        this.combo = 0
+      }
       this.isNosActive = true
       this.nosElapsed = 0
       this.onActivateNos?.()
@@ -907,6 +914,9 @@ export class RiverPhysics {
             this.nearMissCount++
             this.combo = (this.time - this.lastNearMissTime < 4.0) ? this.combo + 1 : 1
             this.lastNearMissTime = this.time
+            if (this.combo >= 2 && this.nosCharges < 3) {
+              this.nosCharges = Math.min(3, this.nosCharges + 1)
+            }
             if (this.combo >= 4 && this.feverTimeLeft <= 0) {
               this.feverTimeLeft = 5.5
               this.onFeverStart?.()
