@@ -245,14 +245,14 @@ export class RiverPhysics {
     this.sinkPitch = 0
     this.health = 100
     this.finished = false
-    this.raft.setTranslation({ x: riverCenter(4), y: 0.85, z: -4 }, true)
+    this.raft.setTranslation({ x: riverCenter(4), y: riverElevation(4) + 0.38, z: -4 }, true)
     this.raft.setLinvel({ x: 0, y: 0, z: 0 }, true)
   }
 
   launchFromDock() {
     this.onDock = false
     this.forwardSpeed = 9.5
-    this.raft.setLinvel({ x: 0, y: -1.2, z: -9.5 }, true)
+    this.raft.setLinvel({ x: 0, y: 0, z: -9.5 }, true)
   }
 
   reset() {
@@ -337,7 +337,7 @@ export class RiverPhysics {
 
   step(steering: number, dt = 1 / 60, boost = false, brake = false, nos = false, parachute = false) {
     if (this.onDock) {
-      this.raft.setTranslation({ x: riverCenter(4), y: 0.85, z: -4 }, true)
+      this.raft.setTranslation({ x: riverCenter(4), y: riverElevation(4) + 0.38, z: -4 }, true)
       this.raft.setLinvel({ x: 0, y: 0, z: 0 }, true)
       return
     }

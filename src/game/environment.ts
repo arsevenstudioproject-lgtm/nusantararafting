@@ -1576,43 +1576,83 @@ export class Environment {
     })
     const logMat = materials.trunk
 
-    // Main Deck Planks
-    const deckGeo = new THREE.BoxGeometry(8.8, 0.45, 14)
-    const deckMesh = new THREE.Mesh(deckGeo, plankMat)
-    deckMesh.position.set(0, 0.55, 0)
-    deckMesh.receiveShadow = true
-    dockGroup.add(deckMesh)
+    // Twin Pier Marina Dock with Open Center Water Channel (x: -2.0 to +2.0 is open river water)
+    // Left Pier Deck
+    const leftPierGeo = new THREE.BoxGeometry(2.4, 0.45, 14)
+    const leftPierMesh = new THREE.Mesh(leftPierGeo, plankMat)
+    leftPierMesh.position.set(-3.2, 0.55, 0)
+    leftPierMesh.receiveShadow = true
+    dockGroup.add(leftPierMesh)
 
-    // Wood Plank Slat Grooves
+    // Right Pier Deck
+    const rightPierGeo = new THREE.BoxGeometry(2.4, 0.45, 14)
+    const rightPierMesh = new THREE.Mesh(rightPierGeo, plankMat)
+    rightPierMesh.position.set(3.2, 0.55, 0)
+    rightPierMesh.receiveShadow = true
+    dockGroup.add(rightPierMesh)
+
+    // Rear Walkway Deck connecting both piers behind the raft berth
+    const rearWalkGeo = new THREE.BoxGeometry(4.0, 0.45, 2.4)
+    const rearWalkMesh = new THREE.Mesh(rearWalkGeo, plankMat)
+    rearWalkMesh.position.set(0, 0.55, 5.8)
+    rearWalkMesh.receiveShadow = true
+    dockGroup.add(rearWalkMesh)
+
+    // Wood Plank Slat Grooves on piers and rear walkway
     for (let z = -6.0; z <= 6.0; z += 1.2) {
-      const slat = new THREE.Mesh(new THREE.BoxGeometry(8.9, 0.06, 0.08), logMat)
-      slat.position.set(0, 0.8, z)
-      dockGroup.add(slat)
+      const slatL = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.06, 0.08), logMat)
+      slatL.position.set(-3.2, 0.8, z)
+      dockGroup.add(slatL)
+
+      const slatR = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.06, 0.08), logMat)
+      slatR.position.set(3.2, 0.8, z)
+      dockGroup.add(slatR)
+    }
+    for (const z of [5.2, 6.4]) {
+      const slatRear = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.06, 0.08), logMat)
+      slatRear.position.set(0, 0.8, z)
+      dockGroup.add(slatRear)
     }
 
-    // Wooden Slipway Ramp to water
-    const rampGeo = new THREE.BoxGeometry(8.6, 0.35, 5)
-    const rampMesh = new THREE.Mesh(rampGeo, plankMat)
-    rampMesh.position.set(0, 0.22, -8.5)
-    rampMesh.rotation.x = 0.18
-    dockGroup.add(rampMesh)
+    // Wooden Slipway Ramps on side piers only (center channel stays wide open to the river)
+    for (const x of [-3.2, 3.2]) {
+      const rampGeo = new THREE.BoxGeometry(2.4, 0.35, 4.0)
+      const rampMesh = new THREE.Mesh(rampGeo, plankMat)
+      rampMesh.position.set(x, 0.22, -8.0)
+      rampMesh.rotation.x = 0.18
+      dockGroup.add(rampMesh)
+    }
+
+    // Mooring Bollards / Cleats along pier edges
+    for (const x of [-2.0, 2.0]) {
+      for (const z of [-3.5, 0.5, 4.2]) {
+        const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.65, 8), logMat)
+        bollard.position.set(x, 0.95, z)
+        dockGroup.add(bollard)
+      }
+    }
 
     // Support Stilts
-    for (const x of [-4.2, 4.2]) {
+    for (const x of [-4.2, -2.1, 2.1, 4.2]) {
       for (const z of [-5.5, 0, 5.5]) {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 4.2, 8), logMat)
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 4.2, 8), logMat)
         post.position.set(x, -1.5, z)
         dockGroup.add(post)
       }
     }
 
-    // Side Railings
+    // Outer Side Railings
     for (const x of [-4.3, 4.3]) {
       const railTop = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 13.5, 6), logMat)
       railTop.rotation.x = Math.PI / 2
       railTop.position.set(x, 1.45, 0)
       dockGroup.add(railTop)
     }
+    // Rear Railing
+    const rearRail = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 8.6, 6), logMat)
+    rearRail.rotation.z = Math.PI / 2
+    rearRail.position.set(0, 1.45, 6.9)
+    dockGroup.add(rearRail)
 
     // 2. Start Portal / Gerbang Kayu Mulai (s = 7 to 8)
     const portalGroup = new THREE.Group()
@@ -1660,19 +1700,13 @@ export class Environment {
     signMesh.position.set(0, 4.4, 0.02)
     portalGroup.add(signMesh)
 
-    // Two Wooden Gate Doors
+    // Gate hinge groups kept for API compatibility, doors removed as requested (open archway)
     this.startGateLeft = new THREE.Group()
     this.startGateLeft.position.set(-4.0, 0, 0)
-    const doorL = new THREE.Mesh(new THREE.BoxGeometry(4.0, 2.8, 0.18), plankMat)
-    doorL.position.set(2.0, 1.4, 0)
-    this.startGateLeft.add(doorL)
     portalGroup.add(this.startGateLeft)
 
     this.startGateRight = new THREE.Group()
     this.startGateRight.position.set(4.0, 0, 0)
-    const doorR = new THREE.Mesh(new THREE.BoxGeometry(4.0, 2.8, 0.18), plankMat)
-    doorR.position.set(-2.0, 1.4, 0)
-    this.startGateRight.add(doorR)
     portalGroup.add(this.startGateRight)
 
     dockGroup.add(portalGroup)

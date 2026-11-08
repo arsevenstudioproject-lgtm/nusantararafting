@@ -17,7 +17,7 @@ const canvas = ref<HTMLCanvasElement>()
 const lensCanvas = ref<HTMLCanvasElement>()
 const panelElement = ref<HTMLElement>()
 const cameraPreview = ref<HTMLElement>()
-const panel = ref<'levels' | 'settings' | 'help' | 'garage' | null>(null)
+const panel = ref<'levels' | 'settings' | 'help' | 'garage' | 'control' | null>(null)
 const garageTab = ref<'raft' | 'paddle'>('raft')
 const selectedGameType = ref<'expedition' | 'endless'>('expedition')
 const fullscreen = ref(false)
@@ -482,7 +482,7 @@ onBeforeUnmount(() => {
     <!-- IN-GAME HUD -->
     <div v-if="state.mode !== 'menu'" class="game-hud" :inert="isOverlay">
       <header class="hud-header">
-        <div class="hud-left">
+        <div v-if="!state.onDock" class="hud-left">
           <span class="hud-brand"><Waves :size="24" /></span>
           <div class="hud-timer">
             <Timer :size="17" />
