@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Camera, Check, ChevronRight,
-  Flag, Flame, Focus, Gauge, Heart, HelpCircle, Keyboard, Leaf,
+  Flag, Focus, Gauge, Heart, HelpCircle, Keyboard, Leaf,
   Home, LockKeyhole, Maximize, Minimize, Mountain, Palette, Pause, Play, RotateCcw,
   Settings2, ShieldCheck, Sparkles, Star, Timer, Trophy, Volume2, VolumeX,
   Waves, X, Zap,
@@ -362,11 +362,7 @@ onBeforeUnmount(() => {
         <div class="rr-brand-group" aria-hidden="true"></div>
 
         <div class="rr-top-actions">
-          <!-- Star Pill -->
-          <button class="rr-stat-pill rr-star-pill" @click="showPanel('garage')" title="Buka Gudang Rakit & Dayung">
-            <span class="rr-pill-icon">⭐</span>
-            <span class="rr-pill-num">{{ progress.totalStars || 73 }}</span>
-          </button>
+          
 
           <!-- Settings Button -->
           <button class="rr-icon-btn rr-settings-btn" @click="showPanel('settings')" title="Pengaturan">
@@ -549,7 +545,7 @@ onBeforeUnmount(() => {
         ⚡ COMBO ×{{ state.combo }}!
       </div>
 
-      <!-- Tombol NOS Combo di Pojok Kanan HUD -->
+      <!-- Tombol Turbo Energi Merah di Pojok Kanan HUD (Tanpa Teks) -->
       <div
         v-if="!state.onDock"
         class="hud-nos-corner"
@@ -560,50 +556,30 @@ onBeforeUnmount(() => {
         }"
       >
         <button
-          class="hud-nos-button"
+          class="hud-nos-button-circle"
           :disabled="state.nosCharges <= 0 && state.combo < 2 && !state.nosActive"
-          :aria-label="state.nosActive ? 'NOS Turbo Aktif' : 'Aktifkan NOS Turbo'"
+          :aria-label="state.nosActive ? 'Turbo Aktif' : 'Aktifkan Turbo'"
+          title="Turbo (Shift / N)"
           @click="triggerNos"
         >
-          <!-- Active timer when firing -->
-          <div v-if="state.nosActive" class="nos-timer-ring">
-            <span>{{ state.nosTimeLeft.toFixed(1) }}s</span>
-          </div>
-          <!-- Shortcut pill when not firing -->
-          <span v-else class="nos-key-pill"><kbd>Shift</kbd> / <kbd>N</kbd></span>
-
-          <!-- Main Icon & Content -->
-          <div class="nos-btn-content">
-            <div class="nos-icon-wrap">
-              <Zap v-if="!state.nosActive" :size="26" fill="currentColor" />
-              <Flame v-else :size="28" fill="currentColor" class="flame-firing" />
-            </div>
-
-            <div class="nos-btn-meta">
-              <span class="nos-main-label">{{ state.nosActive ? 'TURBO BLAST!' : 'NOS TURBO' }}</span>
-              <div v-if="state.nosActive" class="nos-status-sub firing">
-                🔥 MENEMBAK
-              </div>
-              <div v-else-if="state.combo >= 2" class="nos-status-sub combo-ready">
-                ⚡ COMBO ×{{ state.combo }} SIAP!
-              </div>
-              <div v-else-if="state.nosCharges > 0" class="nos-status-sub ready">
-                SIAP (×{{ state.nosCharges }})
-              </div>
-              <div v-else class="nos-status-sub disabled">
-                COMBO / AMBIL NOS
-              </div>
-            </div>
+          <!-- Center Energy Icon (Zap / Lightning Energy) -->
+          <div class="nos-energy-icon-wrap">
+            <Zap :size="36" fill="currentColor" class="nos-energy-icon" />
           </div>
 
-          <!-- Charge pips indicator -->
-          <div class="nos-pips-bar">
+          <!-- Active countdown badge when firing (simple number only) -->
+          <span v-if="state.nosActive" class="nos-countdown-pill">
+            {{ state.nosTimeLeft.toFixed(1) }}s
+          </span>
+
+          <!-- Charge dots at the bottom of the circular button -->
+          <div class="nos-dots-row">
             <span
               v-for="i in 3"
               :key="i"
-              class="nos-pip"
+              class="nos-dot"
               :class="{
-                filled: i <= state.nosCharges || (state.combo >= 2 && i === 1),
+                active: i <= state.nosCharges || (state.combo >= 2 && i === 1),
                 flaming: state.nosActive && i <= 1
               }"
             />
