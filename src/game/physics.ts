@@ -1,5 +1,5 @@
 import RAPIER from '@dimforge/rapier3d-compat'
-import { CAVE_END, CAVE_START, CHECKPOINTS, FINISH, HALF_WIDTH, RAMP_LENGTH, RIVER_FORKS, START, WATERFALL_DROPS, getSplineTangent, jaggedFieldAt, obstacles, pickups, rapidIntensity, riverCenter, riverTangent, sectionAt, sections, whirlpools, type WaterfallDrop } from './level'
+import { CAVE_END, CAVE_START, CHECKPOINTS, FINISH, HALF_WIDTH, RAMP_LENGTH, RIVER_FORKS, START, WATERFALL_DROPS, getSplineTangent, jaggedFieldAt, obstacles, pickups, rapidIntensity, riverCenter, riverElevation, riverTangent, sectionAt, sections, whirlpools, type WaterfallDrop } from './level'
 import type { Obstacle } from './types'
 
 let initialization: Promise<void> | undefined
@@ -12,6 +12,24 @@ interface CrocodileAI {
   cooldownTimer: number
   targetX: number
   targetZ: number
+}
+
+export interface RockslideState {
+  id: number
+  s: number
+  fromX: number
+  toX: number
+  startY: number
+  radius: number
+  progress: number
+  triggered: boolean
+  impactedWater: boolean
+  hasHitRaft: boolean
+  x: number
+  y: number
+  z: number
+  rotX: number
+  rotZ: number
 }
 
 export class RiverPhysics {
@@ -29,6 +47,12 @@ export class RiverPhysics {
   sinkPitch = 0
   onSinkingStart?: () => void
   onRaftSunk?: () => void
+  public rockslides: RockslideState[] = [
+    { id: 9001, s: 515, fromX: 24, toX: 5.8, startY: 18, radius: 2.3, progress: 0, triggered: false, impactedWater: false, hasHitRaft: false, x: 24, y: 18, z: -515, rotX: 0, rotZ: 0 },
+    { id: 9002, s: 845, fromX: -24, toX: -5.5, startY: 19, radius: 2.3, progress: 0, triggered: false, impactedWater: false, hasHitRaft: false, x: -24, y: 19, z: -845, rotX: 0, rotZ: 0 },
+  ]
+  public onRockslideWaterImpact?: (s: number, x: number, z: number) => void
+  public onRockslideHitRaft?: (s: number, x: number, z: number, dir: number) => void
   stamina = 100
   time = 0
   stars = 0
@@ -239,6 +263,16 @@ export class RiverPhysics {
     this.sinkPitch = 0
     this.magnetTimeLeft = 0
     this.feverTimeLeft = 0
+    for (const rock of this.rockslides) {
+      rock.progress = 0
+      rock.triggered = false
+      rock.impactedWater = false
+      rock.hasHitRaft = false
+      rock.x = rock.fromX
+      rock.y = riverElevation(rock.s) + rock.startY
+      rock.rotX = 0
+      rock.rotZ = 0
+    }
     this.events.free()
     this.world.free()
     this.floating = []
@@ -766,6 +800,66 @@ export class RiverPhysics {
     }
 
     const next = this.raft.translation()
+
+
+    // DYNAMIC ROLLING ROCKSLIDES (Batu Longsor Menggelinding & Melempar Rakit)
+    for (const rock of this.rockslides) {
+      const distToRock = rock.s - s
+      if (!rock.triggered && distToRock > 0 && distToRock < 42) {
+        rock.triggered = true
+      }
+      if (rock.triggered && rock.progress < 1.0) {
+        rock.progress = Math.min(1.0, rock.progress + dt * 0.85)
+        const t = rock.progress
+        const ease = t * t
+        const curX = rock.fromX + (rock.toX - rock.fromX) * t
+        const waterY = riverElevation(rock.s)
+        const curY = waterY + rock.startY * (1 - ease) + Math.sin(t * Math.PI * 3.5) * (1 - t) * 1.6 + 0.35
+        const curZ = -rock.s
+        rock.x = curX
+        rock.y = curY
+        rock.z = curZ
+        rock.rotX += dt * 6.5
+        rock.rotZ += dt * (rock.fromX > 0 ? -7.0 : 7.0)
+
+        // Hantaman ke air
+        if (!rock.impactedWater && curY < waterY + 0.65) {
+          rock.impactedWater = true
+          this.onRockslideWaterImpact?.(rock.s, riverCenter(rock.s) + rock.toX, -rock.s)
+        }
+
+        // BENTURAN DENGAN RAKIT: LEMPAR RAKIT KE UDARA!
+        if (!rock.hasHitRaft && this.jumpAltitude < 2.0 && !this.capsized && !this.isSinking) {
+          const boulderWorldX = riverCenter(rock.s) + curX
+          const dXZ = Math.hypot(next.x - boulderWorldX, next.z - curZ)
+          const dY = Math.abs(next.y - curY)
+          if (dXZ < 3.8 && dY < 2.6) {
+            rock.hasHitRaft = true
+            const throwDir = Math.sign(next.x - boulderWorldX) || (rock.fromX > 0 ? -1 : 1)
+            this.raft.setLinvel({ x: throwDir * 15.0, y: 7.5, z: Math.min(velocity.z, -5.0) }, true)
+            this.raft.applyImpulse({ x: throwDir * 40.0, y: 16.0, z: -10.0 }, true)
+            this.lateralVelocity = throwDir * 15.0
+            this.jumpAltitude = 2.4
+            this.jumpVy = 8.5
+            this.isAirborne = true
+            this.spinImpulse += throwDir * 20.0
+            this.knockback = 0.65
+            this.lastImpact = this.time
+            this.hits++
+
+            if (this.hasShield) {
+              this.hasShield = false
+              this.onShieldHit?.()
+            } else if (this.feverTimeLeft > 0 || this.isNosActive) {
+              // protected
+            } else {
+              this.health = Math.max(0, this.health - 16)
+            }
+            this.onRockslideHitRaft?.(rock.s, boulderWorldX, curZ, throwDir)
+          }
+        }
+      }
+    }
 
     // MULTIPLAYER RAFT-TO-RAFT COLLISION (BUMPER CAR PHYSICS):
     if (this.opponentState && !this.capsized && !this.isWaterfallPlunge) {

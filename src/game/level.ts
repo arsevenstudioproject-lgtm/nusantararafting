@@ -380,15 +380,25 @@ const baseObstacles: Obstacle[] = [
   rock(1788, 8, 2.6),
 ]
 
+
+// DINDING BATU PEMBAGI JALUR DI TENGAH PERCABANGAN (100% Solid Collider - Tidak bisa ditembus rakit)
+const forkCenterSpineRocks: Obstacle[] = RIVER_FORKS.flatMap(fork => {
+  const rocks: Obstacle[] = []
+  for (let s = fork.startS + 24; s < fork.endS - 10; s += 12) {
+    rocks.push(rock(s, 0, 3.4))
+  }
+  return rocks
+})
+
 const forkDeadEndRocks: Obstacle[] = RIVER_FORKS.flatMap(fork => [6.8, 9.6, 12.4].map(lane => rock(fork.chasmS + 13, -fork.safeSide * lane, 2.3)))
 // Tanpa buaya di area percabangan
-export const obstacles: Obstacle[] = [...baseObstacles, ...forkDeadEndRocks]
+export const obstacles: Obstacle[] = [...baseObstacles, ...forkDeadEndRocks, ...forkCenterSpineRocks]
   .filter(o => o.kind !== 'crocodile' || !RIVER_FORKS.some(f => o.s > f.startS - 15 && o.s < f.endS + 15))
 
 // Koin Emas Bertanda Inisial CR (Choirul7 2026 Relic Coins) - Termasuk Airborne Coin Arc di Arena Jump!
 const pickupRaw: [number, number, PickupKind, number?][] = [
   [38, 0, 'coin'], [55, 3, 'coin'], [88, -3, 'coin'], [115, 2, 'coin'], [130, 0, 'repair'], [147, -5, 'coin'], [170, 2, 'coin'], [182, 3, 'coin'],
-  [240, 0, 'shield'], [340, 2, 'magnet'], [450, 0, 'nos'], [630, 0, 'repair'], [735, 1, 'shield'], [870, 0, 'magnet'], [1015, 0, 'nos'], [1190, 0, 'repair'], [1340, -1, 'shield'], [1490, 0, 'magnet'], [1615, 0, 'nos'],
+  [240, 0, 'shield'], [340, 2, 'magnet'], [450, 0, 'nos'], [630, 0, 'repair'], [735, 1, 'shield'], [870, -8, 'magnet'], [1015, 0, 'nos'], [1190, 0, 'repair'], [1340, -1, 'shield'], [1490, 8, 'magnet'], [1615, 0, 'nos'],
   // Airborne Coin Arc 1 (Ramp 195):
   [201, 2, 'coin', 3.2], [206, 2, 'coin', 5.2], [211, 2, 'coin', 6.0], [216, 2, 'coin', 4.8], [221, 2, 'coin', 3.0],
   [214, -3, 'coin'],

@@ -1873,26 +1873,14 @@ export class Environment {
       foam.rotation.y = time * (i % 2 ? .6 : -.8)
     }
 
-    // DYNAMIC ROCKSLIDE EVENT UPDATE
-    for (const r of this.rockslides) {
-      const dist = r.s - s
-      if (!r.triggered && dist > 0 && dist < 42) {
-        r.triggered = true
-      }
-      if (r.triggered && r.progress < 1) {
-        r.progress = Math.min(1, r.progress + dt * 0.95)
-        const t = r.progress
-        const ease = t * t // accelerating gravity fall
-        const curX = r.fromX + (r.toX - r.fromX) * t
-        const curY = r.startY * (1 - ease) + 0.35 + Math.sin(t * Math.PI * 4) * (1 - t) * 1.5
-        const riverY = riverElevation(r.s)
-        r.mesh.position.set(riverCenter(r.s) + curX, riverY + curY, -r.s)
-        r.mesh.rotation.x += dt * 5
-        r.mesh.rotation.z += dt * 6
-        if (!r.impacted && curY < 0.6) {
-          r.impacted = true
-          this.onRockslideImpact?.(r.s, riverCenter(r.s) + r.toX, -r.s)
-        }
+    // DYNAMIC ROCKSLIDE EVENT SYNC
+    for (let i = 0; i < this.rockslides.length; i++) {
+      const visual = this.rockslides[i]
+      const pRock = physics.rockslides[i]
+      if (pRock && visual) {
+        visual.mesh.position.set(riverCenter(pRock.s) + pRock.x, pRock.y, -pRock.s)
+        visual.mesh.rotation.x = pRock.rotX
+        visual.mesh.rotation.z = pRock.rotZ
       }
     }
 
